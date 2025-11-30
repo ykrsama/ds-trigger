@@ -13,8 +13,6 @@ void InputConv3dBlock(
     float conv2_beta[F_MAPS_0],
     float output[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     #pragma HLS array_partition variable=conv1_kernel cyclic factor=8 dim=2
     #pragma HLS array_partition variable=conv1_kernel cyclic factor=3 dim=3
     #pragma HLS array_partition variable=conv1_kernel cyclic factor=3 dim=4
@@ -25,8 +23,9 @@ void InputConv3dBlock(
     #pragma HLS array_partition variable=conv2_kernel cyclic factor=3 dim=4
     #pragma HLS array_partition variable=conv2_kernel cyclic factor=3 dim=5
 
+    #pragma HLS dataflow
+
     float padded_input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH+2][INPUT_HEIGHT+2][INPUT_WIDTH+2];
-    #pragma HLS stream variable=padded_input depth=10 type=fifo
     #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
@@ -52,7 +51,6 @@ void InputConv3dBlock(
     }
 
     float conv1_out[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=conv1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=uram
 
     float cube_buffer[BATCH_SIZE][INPUT_CHANNELS][KERNEL_SIZE][INPUT_HEIGHT+2][INPUT_WIDTH+2];
@@ -215,7 +213,6 @@ void InputConv3dBlock(
 
     // Second conv layer: 64 -> 64
     float padded_conv1[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH+2][INPUT_HEIGHT+2][INPUT_WIDTH+2];
-    #pragma HLS stream variable=padded_conv1 depth=10 type=fifo
     #pragma HLS bind_storage variable=padded_conv1 type=ram_t2p impl=bram
 
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
@@ -241,7 +238,6 @@ void InputConv3dBlock(
     }
 
     float conv2_out[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=conv2_out depth=10 type=fifo
     #pragma HLS bind_storage variable=conv2_out type=ram_t2p impl=uram
 
     float cube_buffer2[BATCH_SIZE][F_MAPS_0][KERNEL_SIZE][INPUT_HEIGHT+2][INPUT_WIDTH+2];
@@ -413,8 +409,6 @@ void EncoderConv3dBlock(
     float conv2_beta[F_MAPS_1],
     float output[BATCH_SIZE][F_MAPS_1][INPUT_DEPTH/2][INPUT_HEIGHT/2][INPUT_WIDTH/2]
 ) {
-    #pragma HLS dataflow
-
     #pragma HLS array_partition variable=conv1_kernel cyclic factor=8 dim=2
     #pragma HLS array_partition variable=conv1_kernel cyclic factor=3 dim=3
     #pragma HLS array_partition variable=conv1_kernel cyclic factor=3 dim=4
@@ -425,6 +419,8 @@ void EncoderConv3dBlock(
     #pragma HLS array_partition variable=conv2_kernel cyclic factor=3 dim=4
     #pragma HLS array_partition variable=conv2_kernel cyclic factor=3 dim=5
 
+    #pragma HLS dataflow
+
     // Suppress unused parameter warnings for placeholder implementation
     (void)conv1_gamma;
     (void)conv1_beta;
@@ -432,7 +428,6 @@ void EncoderConv3dBlock(
     (void)conv2_beta;
 
     float padded_input[BATCH_SIZE][F_MAPS_0][HALF_DEPTH+2][HALF_HEIGHT+2][HALF_WIDTH+2];
-    #pragma HLS stream variable=padded_input depth=10 type=fifo
     #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
@@ -458,7 +453,6 @@ void EncoderConv3dBlock(
     }
 
     float conv1_out[BATCH_SIZE][F_MAPS_1][HALF_DEPTH][HALF_HEIGHT][HALF_WIDTH];
-    #pragma HLS stream variable=conv1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=uram
 
     // Implementation similar to InputConv3dBlock but with different dimensions
@@ -480,7 +474,8 @@ void EncoderConv3dBlock(
 
 // Decoder conv block: (64+128) -> 64 -> 64 channels
 void DecoderConv3dBlock(
-    float input[BATCH_SIZE][F_MAPS_0+F_MAPS_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float input1[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float input2[BATCH_SIZE][F_MAPS_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float conv1_kernel[F_MAPS_0][F_MAPS_0+F_MAPS_1][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
     float conv1_gamma[F_MAPS_0],
     float conv1_beta[F_MAPS_0],
@@ -491,8 +486,8 @@ void DecoderConv3dBlock(
 ) {
     #pragma HLS dataflow
 
-    // Suppress unused parameter warnings for placeholder implementation
-    (void)input;
+    (void)input1;
+    (void)input2;
     (void)conv1_kernel;
     (void)conv1_gamma;
     (void)conv1_beta;
@@ -693,25 +688,22 @@ void unet3d_reduced(
     #pragma HLS dataflow
 
     float f_maps_0_skip[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=f_maps_0_skip depth=10 type=fifo
+    #pragma HLS bind_storage variable=f_maps_0_skip type=ram_t2p impl=uram
 
     float f_maps_0_pooled[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH/2][INPUT_HEIGHT/2][INPUT_WIDTH/2];
-    #pragma HLS stream variable=f_maps_0_pooled depth=10 type=fifo
+    #pragma HLS bind_storage variable=f_maps_0_pooled type=ram_t2p impl=uram
 
     float f_maps_1[BATCH_SIZE][F_MAPS_1][INPUT_DEPTH/2][INPUT_HEIGHT/2][INPUT_WIDTH/2];
-    #pragma HLS stream variable=f_maps_1 depth=10 type=fifo
+    #pragma HLS bind_storage variable=f_maps_1 type=ram_t2p impl=uram
 
     float f_maps_1_upsampled[BATCH_SIZE][F_MAPS_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=f_maps_1_upsampled depth=10 type=fifo
-
-    float concatenated[BATCH_SIZE][F_MAPS_0+F_MAPS_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=concatenated depth=10 type=fifo
+    #pragma HLS bind_storage variable=f_maps_1_upsampled type=ram_t2p impl=uram
 
     float decoder_out[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=decoder_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=decoder_out type=ram_t2p impl=uram
 
     float output_conv_out[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=output_conv_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=output_conv_out type=ram_t2p impl=uram
 
     InputConv3dBlock(
         input, input_conv1_weight, input_conv1_gamma, input_conv1_beta,
@@ -729,10 +721,8 @@ void unet3d_reduced(
 
     NearestUpsample3d(f_maps_1, f_maps_1_upsampled);
 
-    Concatenate3d(f_maps_0_skip, f_maps_1_upsampled, concatenated);
-
     DecoderConv3dBlock(
-        concatenated, decoder_conv1_weight, decoder_conv1_gamma, decoder_conv1_beta,
+        f_maps_0_skip, f_maps_1_upsampled, decoder_conv1_weight, decoder_conv1_gamma, decoder_conv1_beta,
         decoder_conv2_weight, decoder_conv2_gamma, decoder_conv2_beta,
         decoder_out
     );

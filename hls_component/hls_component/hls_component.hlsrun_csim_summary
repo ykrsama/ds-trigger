@@ -1,0 +1,158 @@
+<ENTRY>
+{
+ "thisFile": "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\hls_component\\hls_component.hlsrun_csim_summary",
+ "connectId": "",
+ "serverToken": "",
+ "timestamp": "0"
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "11/30/25 17:43:34",
+ "timestampMillis": "1764495814807",
+ "buildStep": {
+  "cmdId": "20225558-d82f-4d5b-994e-5db43f72493b",
+  "name": "vitis-run",
+  "logFile": "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\hls_component\\logs\\hls_component.steps.log",
+  "commandLine": "C:/Xilinx/Vitis/2024.2/bin/unwrapped/win64.o/vitis-run.exe  --mode hls --csim --config C:\\Users\\User\\Documents\\ds-trigger\\hls_component\\hls_config.cfg --work_dir hls_component ",
+  "args": [
+   "--mode",
+   "hls",
+   "--csim",
+   "--config",
+   "C:\\Users\\User\\Documents\\ds-trigger\\hls_component\\hls_config.cfg",
+   "--work_dir",
+   "hls_component"
+  ],
+  "iniFiles": [],
+  "cwd": "C:\\Users\\User\\Documents\\ds-trigger\\hls_component"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "11/30/25 17:43:34",
+ "timestampMillis": "1764495814807",
+ "status": {
+  "cmdId": "20225558-d82f-4d5b-994e-5db43f72493b",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_FlowMetaData",
+ "dateTimestamp": "11/30/25 17:43:39",
+ "timestampMillis": "1764495819047",
+ "buildSummary": {
+  "hardwarePlatform": "",
+  "hardwareDsa": "",
+  "platformDirectory": "",
+  "runtime": "",
+  "systemConfig": "",
+  "flow": "BF_RUN",
+  "target": "TT_HLS_C_SIM",
+  "kernels": [
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "",
+     "file": "",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [
+     "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\unet_weights.h",
+     "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\unet_weights_data.cpp",
+     "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\unet3d_reduced.cpp"
+    ],
+    "psSources": [],
+    "cuNames": [],
+    "type": "HLS",
+    "frequency": 0,
+    "freqUnits": ""
+   }
+  ],
+  "toolVersion": "2024.2"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "11/30/25 17:43:39",
+ "timestampMillis": "1764495819048",
+ "buildStep": {
+  "cmdId": "90da2341-4246-4c5e-b449-d0272c14d8c6",
+  "name": "",
+  "logFile": "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\hls_component\\hls\\hls.log",
+  "commandLine": "",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "C:\\Users\\User\\Documents\\ds-trigger\\hls_component"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "11/30/25 17:43:39",
+ "timestampMillis": "1764495819048",
+ "status": {
+  "cmdId": "90da2341-4246-4c5e-b449-d0272c14d8c6",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "11/30/25 17:43:43",
+ "timestampMillis": "1764495823287",
+ "status": {
+  "cmdId": "90da2341-4246-4c5e-b449-d0272c14d8c6",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "11/30/25 17:43:43",
+ "timestampMillis": "1764495823401",
+ "status": {
+  "cmdId": "20225558-d82f-4d5b-994e-5db43f72493b",
+  "state": "CS_FAILED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "11/30/25 17:43:43",
+ "timestampMillis": "1764495823402",
+ "report": {
+  "path": "",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "11/30/25 17:43:43",
+ "timestampMillis": "1764495823403",
+ "report": {
+  "path": "",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>

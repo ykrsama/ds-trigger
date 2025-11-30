@@ -2,7 +2,7 @@
 #include <fstream>
 #include <cmath>
 #include <cstring>
-#include "unet3d_reduced.cpp"
+#include "unet3d_reduced.h"
 
 using namespace std;
 

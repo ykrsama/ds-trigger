@@ -1,31 +1,6 @@
-#include <algorithm>
-#include <ap_axi_sdata.h>
-#include <ap_fixed.h>
-#include <ap_int.h>
-#include <hls_math.h>
-#include <hls_stream.h>
-#include <hls_vector.h>
-#include <math.h>
-#include <stdint.h>
-#include <string.h>
+#include "unet3d_reduced.h"
 
 using namespace std;
-
-#define BATCH_SIZE 1
-#define INPUT_CHANNELS 1
-#define F_MAPS_0 64
-#define F_MAPS_1 128
-#define OUTPUT_CHANNELS 5
-#define INPUT_DEPTH 43
-#define INPUT_HEIGHT 43
-#define INPUT_WIDTH 11
-#define KERNEL_SIZE 3
-#define PADDING 1
-#define STRIDE 1
-#define POOL_SIZE 2
-#define POOL_STRIDE 2
-#define NUM_GROUPS 8
-#define EPSILON 1e-5f
 
 // Input conv block: 1 -> 64 -> 64 channels
 void InputConv3dBlock(

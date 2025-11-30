@@ -425,9 +425,11 @@ void EncoderConv3dBlock(
     #pragma HLS array_partition variable=conv2_kernel cyclic factor=3 dim=4
     #pragma HLS array_partition variable=conv2_kernel cyclic factor=3 dim=5
 
-    int HALF_DEPTH = INPUT_DEPTH/2;
-    int HALF_HEIGHT = INPUT_HEIGHT/2;
-    int HALF_WIDTH = INPUT_WIDTH/2;
+    // Suppress unused parameter warnings for placeholder implementation
+    (void)conv1_gamma;
+    (void)conv1_beta;
+    (void)conv2_gamma;
+    (void)conv2_beta;
 
     float padded_input[BATCH_SIZE][F_MAPS_0][HALF_DEPTH+2][HALF_HEIGHT+2][HALF_WIDTH+2];
     #pragma HLS stream variable=padded_input depth=10 type=fifo
@@ -489,6 +491,15 @@ void DecoderConv3dBlock(
 ) {
     #pragma HLS dataflow
 
+    // Suppress unused parameter warnings for placeholder implementation
+    (void)input;
+    (void)conv1_kernel;
+    (void)conv1_gamma;
+    (void)conv1_beta;
+    (void)conv2_kernel;
+    (void)conv2_gamma;
+    (void)conv2_beta;
+
     // Simplified placeholder for now
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int depth = 0; depth < INPUT_DEPTH; depth++) {
@@ -515,6 +526,15 @@ void OutputConv3dBlock(
     float output[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
     #pragma HLS dataflow
+
+    // Suppress unused parameter warnings for placeholder implementation
+    (void)input;
+    (void)conv1_kernel;
+    (void)conv1_gamma;
+    (void)conv1_beta;
+    (void)conv2_kernel;
+    (void)conv2_gamma;
+    (void)conv2_beta;
 
     // Simplified placeholder for now
     for (int batch = 0; batch < BATCH_SIZE; batch++) {

@@ -76,3 +76,18 @@ When modifying the network architecture:
 1. Update constants in `unet3d_reduced.cpp` (lines 14-28)
 2. Adjust memory buffer sizes accordingly
 3. Update testbench if input/output dimensions change
+
+## Test
+
+### C Simulation
+
+```bash
+vitis-run.bat --mode hls --csim --config hls_component\hls_config.cfg --work_dir hls_component
+```
+
+### C Synthesis
+
+```bash
+v++.bat -c --mode hls --config hls_component\hls_config.cfg --work_dir hls_component
+```
+

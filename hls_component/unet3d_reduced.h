@@ -29,6 +29,9 @@ using namespace std;
 #define POOL_STRIDE 2
 #define NUM_GROUPS 8
 #define EPSILON 1e-5f
+#define HALF_DEPTH (INPUT_DEPTH/2)
+#define HALF_HEIGHT (INPUT_HEIGHT/2)
+#define HALF_WIDTH (INPUT_WIDTH/2)
 
 // Function declarations
 void InputConv3dBlock(

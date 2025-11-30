@@ -9,10 +9,10 @@
 <ENTRY>
 {
  "type": "ET_CmdStep",
- "dateTimestamp": "11/30/25 17:43:34",
- "timestampMillis": "1764495814807",
+ "dateTimestamp": "11/30/25 18:21:34",
+ "timestampMillis": "1764498094749",
  "buildStep": {
-  "cmdId": "20225558-d82f-4d5b-994e-5db43f72493b",
+  "cmdId": "c202a2f6-8a08-42ae-abf8-18ea5e06705b",
   "name": "vitis-run",
   "logFile": "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\hls_component\\logs\\hls_component.steps.log",
   "commandLine": "C:/Xilinx/Vitis/2024.2/bin/unwrapped/win64.o/vitis-run.exe  --mode hls --csim --config C:\\Users\\User\\Documents\\ds-trigger\\hls_component\\hls_config.cfg --work_dir hls_component ",
@@ -33,10 +33,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "11/30/25 17:43:34",
- "timestampMillis": "1764495814807",
+ "dateTimestamp": "11/30/25 18:21:34",
+ "timestampMillis": "1764498094749",
  "status": {
-  "cmdId": "20225558-d82f-4d5b-994e-5db43f72493b",
+  "cmdId": "c202a2f6-8a08-42ae-abf8-18ea5e06705b",
   "state": "CS_RUNNING"
  }
 }
@@ -44,8 +44,8 @@
 <ENTRY>
 {
  "type": "ET_FlowMetaData",
- "dateTimestamp": "11/30/25 17:43:39",
- "timestampMillis": "1764495819047",
+ "dateTimestamp": "11/30/25 18:21:38",
+ "timestampMillis": "1764498098683",
  "buildSummary": {
   "hardwarePlatform": "",
   "hardwareDsa": "",
@@ -66,7 +66,8 @@
     "sources": [
      "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\unet_weights.h",
      "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\unet_weights_data.cpp",
-     "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\unet3d_reduced.cpp"
+     "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\unet3d_reduced.cpp",
+     "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\unet3d_reduced.h"
     ],
     "psSources": [],
     "cuNames": [],
@@ -82,10 +83,10 @@
 <ENTRY>
 {
  "type": "ET_SubCmdStep",
- "dateTimestamp": "11/30/25 17:43:39",
- "timestampMillis": "1764495819048",
+ "dateTimestamp": "11/30/25 18:21:38",
+ "timestampMillis": "1764498098684",
  "buildStep": {
-  "cmdId": "90da2341-4246-4c5e-b449-d0272c14d8c6",
+  "cmdId": "fc6eb9b7-9d9d-477a-bddb-420d104c3a81",
   "name": "",
   "logFile": "C:/Users\\User\\Documents\\ds-trigger\\hls_component\\hls_component\\hls\\hls.log",
   "commandLine": "",
@@ -98,10 +99,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "11/30/25 17:43:39",
- "timestampMillis": "1764495819048",
+ "dateTimestamp": "11/30/25 18:21:38",
+ "timestampMillis": "1764498098685",
  "status": {
-  "cmdId": "90da2341-4246-4c5e-b449-d0272c14d8c6",
+  "cmdId": "fc6eb9b7-9d9d-477a-bddb-420d104c3a81",
   "state": "CS_RUNNING"
  }
 }
@@ -109,10 +110,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "11/30/25 17:43:43",
- "timestampMillis": "1764495823287",
+ "dateTimestamp": "11/30/25 18:21:53",
+ "timestampMillis": "1764498113890",
  "status": {
-  "cmdId": "90da2341-4246-4c5e-b449-d0272c14d8c6",
+  "cmdId": "fc6eb9b7-9d9d-477a-bddb-420d104c3a81",
   "state": "CS_PASSED"
  }
 }
@@ -120,19 +121,19 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "11/30/25 17:43:43",
- "timestampMillis": "1764495823401",
+ "dateTimestamp": "11/30/25 18:21:54",
+ "timestampMillis": "1764498114008",
  "status": {
-  "cmdId": "20225558-d82f-4d5b-994e-5db43f72493b",
-  "state": "CS_FAILED"
+  "cmdId": "c202a2f6-8a08-42ae-abf8-18ea5e06705b",
+  "state": "CS_PASSED"
  }
 }
 </ENTRY>
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "11/30/25 17:43:43",
- "timestampMillis": "1764495823402",
+ "dateTimestamp": "11/30/25 18:21:54",
+ "timestampMillis": "1764498114009",
  "report": {
   "path": "",
   "name": "",
@@ -145,8 +146,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "11/30/25 17:43:43",
- "timestampMillis": "1764495823403",
+ "dateTimestamp": "11/30/25 18:21:54",
+ "timestampMillis": "1764498114009",
  "report": {
   "path": "",
   "name": "",

@@ -638,30 +638,93 @@ void EncoderConv3D(
     }
 }
 
-// Nearest neighbor upsampling: spatial upsampling by 2
+// Optimized nearest neighbor upsampling: spatial upsampling by 2
 void DecoderUpsample3D(
     float input[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int ch = 0; ch < F_MAP_1; ch++) {
-            for (int out_d = 0; out_d < INPUT_DEPTH; out_d++) {
-                for (int out_h = 0; out_h < INPUT_HEIGHT; out_h++) {
-                    for (int out_w = 0; out_w < INPUT_WIDTH; out_w++) {
-                        #pragma HLS pipeline II=1
+    // Memory interface optimizations
+    #pragma HLS array_partition variable=input cyclic factor=F_MAP_1 dim=2
+    #pragma HLS array_partition variable=output cyclic factor=F_MAP_1 dim=2
+    #pragma HLS bind_storage variable=input type=ram_t2p impl=bram
+    #pragma HLS bind_storage variable=output type=ram_t2p impl=bram
 
-                        // Nearest neighbor interpolation
-                        int src_d = out_d / 2;
-                        int src_h = out_h / 2;
-                        int src_w = out_w / 2;
+    // Line buffer for streaming data access pattern
+    float line_buffer[F_MAP_1][POOL_OUTPUT_WIDTH];
+    #pragma HLS array_partition variable=line_buffer cyclic factor=F_MAP_1 dim=1
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
-                        // Clamp to valid range
-                        if (src_d >= POOL_OUTPUT_DEPTH) src_d = POOL_OUTPUT_DEPTH - 1;
-                        if (src_h >= POOL_OUTPUT_HEIGHT) src_h = POOL_OUTPUT_HEIGHT - 1;
-                        if (src_w >= POOL_OUTPUT_WIDTH) src_w = POOL_OUTPUT_WIDTH - 1;
+    // Main processing loops with optimized ordering for streaming
+    batch_loop: for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        #pragma HLS loop_tripcount min=1 max=1
 
-                        output[batch][ch][out_d][out_h][out_w] =
-                            input[batch][ch][src_d][src_h][src_w];
+        depth_loop: for (int src_d = 0; src_d < POOL_OUTPUT_DEPTH; src_d++) {
+            #pragma HLS pipeline off
+            #pragma HLS loop_tripcount min=16 max=16
+
+            height_loop: for (int src_h = 0; src_h < POOL_OUTPUT_HEIGHT; src_h++) {
+                #pragma HLS pipeline off
+
+                // Load input line into buffer for reuse
+                load_loop: for (int src_w = 0; src_w < POOL_OUTPUT_WIDTH; src_w++) {
+                    #pragma HLS pipeline II=1
+                    #pragma HLS unroll factor=2
+
+                    for (int ch = 0; ch < F_MAP_1; ch++) {
+                        #pragma HLS unroll
+                        line_buffer[ch][src_w] = input[batch][ch][src_d][src_h][src_w];
+                    }
+                }
+
+                // Generate upsampled outputs (2x2 expansion per source pixel)
+                upsample_height_loop: for (int h_offset = 0; h_offset < 2; h_offset++) {
+                    #pragma HLS pipeline off
+
+                    int out_h = src_h * 2 + h_offset;
+                    if (out_h < INPUT_HEIGHT) {
+
+                        upsample_width_loop: for (int src_w = 0; src_w < POOL_OUTPUT_WIDTH; src_w++) {
+                            #pragma HLS pipeline II=1
+                            #pragma HLS unroll factor=2
+
+                            int out_w_base = src_w * 2;
+
+                            // Process all channels in parallel
+                            channel_loop: for (int ch = 0; ch < F_MAP_1; ch++) {
+                                #pragma HLS unroll
+
+                                float pixel_val = line_buffer[ch][src_w];
+
+                                // Generate 2x upsampling in width dimension
+                                if (out_w_base < INPUT_WIDTH) {
+                                    // First depth output
+                                    int out_d1 = src_d * 2;
+                                    if (out_d1 < INPUT_DEPTH) {
+                                        output[batch][ch][out_d1][out_h][out_w_base] = pixel_val;
+                                    }
+
+                                    // Second depth output
+                                    int out_d2 = src_d * 2 + 1;
+                                    if (out_d2 < INPUT_DEPTH) {
+                                        output[batch][ch][out_d2][out_h][out_w_base] = pixel_val;
+                                    }
+                                }
+
+                                if (out_w_base + 1 < INPUT_WIDTH) {
+                                    // First depth output
+                                    int out_d1 = src_d * 2;
+                                    if (out_d1 < INPUT_DEPTH) {
+                                        output[batch][ch][out_d1][out_h][out_w_base + 1] = pixel_val;
+                                    }
+
+                                    // Second depth output
+                                    int out_d2 = src_d * 2 + 1;
+                                    if (out_d2 < INPUT_DEPTH) {
+                                        output[batch][ch][out_d2][out_h][out_w_base + 1] = pixel_val;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -198,7 +198,6 @@ void DecoderConv3D_1(
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
 
-    const int CONV_PADDING = 1;
     int PADDED_DEPTH = INPUT_DEPTH + 2 * CONV_PADDING;
     int PADDED_HEIGHT = INPUT_HEIGHT + 2 * CONV_PADDING;
     int PADDED_WIDTH = INPUT_WIDTH + 2 * CONV_PADDING;
@@ -409,7 +408,6 @@ void DecoderConv3D_2(
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
 
-    const int CONV_PADDING = 1;
     int PADDED_DEPTH = INPUT_DEPTH + 2 * CONV_PADDING;
     int PADDED_HEIGHT = INPUT_HEIGHT + 2 * CONV_PADDING;
     int PADDED_WIDTH = INPUT_WIDTH + 2 * CONV_PADDING;

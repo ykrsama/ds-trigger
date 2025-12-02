@@ -638,12 +638,11 @@ void EncoderConv3D(
     }
 }
 
-// Optimized nearest neighbor upsampling: spatial upsampling by 2
+// Nearest neighbor upsampling: spatial upsampling by 2
 void DecoderUpsample3D(
     float input[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    // Memory interface optimizations
     #pragma HLS array_partition variable=input cyclic factor=F_MAP_1 dim=2
     #pragma HLS array_partition variable=output cyclic factor=F_MAP_1 dim=2
     #pragma HLS bind_storage variable=input type=ram_t2p impl=bram
@@ -654,7 +653,7 @@ void DecoderUpsample3D(
     #pragma HLS array_partition variable=line_buffer cyclic factor=F_MAP_1 dim=1
     #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
-    // Main processing loops with optimized ordering for streaming
+    // Main processing loops
     batch_loop: for (int batch = 0; batch < BATCH_SIZE; batch++) {
         #pragma HLS loop_tripcount min=1 max=1
 
@@ -738,20 +737,37 @@ void ConcatenateTensors(
     float tensor2[BATCH_SIZE][F_MAP_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-            for (int height = 0; height < INPUT_HEIGHT; height++) {
-                for (int width = 0; width < INPUT_WIDTH; width++) {
-                    #pragma HLS pipeline II=1
+    #pragma HLS array_partition variable=tensor1 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=tensor2 cyclic factor=F_MAP_1 dim=2
+    #pragma HLS array_partition variable=output cyclic factor=CONCAT_CHANNELS dim=2
+    #pragma HLS bind_storage variable=tensor1 type=ram_t2p impl=bram
+    #pragma HLS bind_storage variable=tensor2 type=ram_t2p impl=bram
+    #pragma HLS bind_storage variable=output type=ram_t2p impl=bram
 
-                    // Copy first tensor (F_MAP_0 channels)
-                    for (int ch = 0; ch < F_MAP_0; ch++) {
+    batch_loop: for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        #pragma HLS loop_tripcount min=1 max=1
+
+        depth_loop: for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+            #pragma HLS pipeline off
+            #pragma HLS loop_tripcount min=32 max=32
+
+            height_loop: for (int height = 0; height < INPUT_HEIGHT; height++) {
+                #pragma HLS pipeline off
+
+                width_loop: for (int width = 0; width < INPUT_WIDTH; width++) {
+                    #pragma HLS pipeline II=1
+                    #pragma HLS unroll factor=4
+
+                    // Process tensor1 channels in parallel (F_MAP_0 = 64 channels)
+                    tensor1_channels: for (int ch = 0; ch < F_MAP_0; ch++) {
+                        #pragma HLS unroll
                         output[batch][ch][depth][height][width] =
                             tensor1[batch][ch][depth][height][width];
                     }
 
-                    // Copy second tensor (F_MAP_1 channels)
-                    for (int ch = 0; ch < F_MAP_1; ch++) {
+                    // Process tensor2 channels in parallel (F_MAP_1 = 128 channels)
+                    tensor2_channels: for (int ch = 0; ch < F_MAP_1; ch++) {
+                        #pragma HLS unroll
                         output[batch][F_MAP_0 + ch][depth][height][width] =
                             tensor2[batch][ch][depth][height][width];
                     }
@@ -1341,7 +1357,7 @@ void Sigmoid3D(
     #pragma HLS INTERFACE m_axi port=output bundle=gmem1
     #pragma HLS INTERFACE s_axilite port=return bundle=control
 
-    // Optimized lookup table for sigmoid values
+    // Lookup table for sigmoid values
     // Pre-computed for range [-6, 6] with 0.125 step size (97 entries)
     static const float sigmoid_lut[97] = {
         0.0025f, 0.0033f, 0.0043f, 0.0056f, 0.0074f, 0.0096f, 0.0125f, 0.0163f,

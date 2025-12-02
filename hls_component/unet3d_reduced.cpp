@@ -22,18 +22,18 @@ void UNet3DReduced(
     float final_conv_bias[OUTPUT_CHANNELS],
 
     // GroupNorm parameters
-    float input_conv1_gamma[F_MAP_h],
-    float input_conv1_beta[F_MAP_h],
-    float input_conv2_gamma[F_MAP_0],
-    float input_conv2_beta[F_MAP_0],
+    float input_conv1_gamma[INPUT_CHANNELS],
+    float input_conv1_beta[INPUT_CHANNELS],
+    float input_conv2_gamma[F_MAP_h],
+    float input_conv2_beta[F_MAP_h],
 
     float encoder_conv1_gamma[F_MAP_0],
     float encoder_conv1_beta[F_MAP_0],
-    float encoder_conv2_gamma[F_MAP_1],
-    float encoder_conv2_beta[F_MAP_1],
+    float encoder_conv2_gamma[F_MAP_0],
+    float encoder_conv2_beta[F_MAP_0],
 
-    float decoder_conv1_gamma[F_MAP_0],
-    float decoder_conv1_beta[F_MAP_0],
+    float decoder_conv1_gamma[CONCAT_CHANNELS],
+    float decoder_conv1_beta[CONCAT_CHANNELS],
     float decoder_conv2_gamma[F_MAP_0],
     float decoder_conv2_beta[F_MAP_0],
 

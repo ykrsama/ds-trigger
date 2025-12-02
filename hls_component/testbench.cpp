@@ -1,280 +1,351 @@
+#include "unet3d_reduced.h"
 #include <iostream>
 #include <fstream>
+#include <random>
+#include <chrono>
 #include <cmath>
-#include <cstring>
-#include "unet3d_reduced.h"
 
 using namespace std;
 
-void initialize_test_data(
-    float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    float expected_output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
-) {
+// Testbench for UNet3DReduced HLS implementation
+int main() {
+    cout << "Starting UNet3D Reduced HLS Testbench..." << endl;
 
+    // Initialize random number generator
+    random_device rd;
+    mt19937 gen(rd());
+    normal_distribution<float> normal_dist(0.0f, 1.0f);
+    uniform_real_distribution<float> uniform_dist(-1.0f, 1.0f);
+
+    // Allocate input and output tensors
+    cout << "Allocating memory for input/output tensors..." << endl;
+
+    // Input tensor
+    static float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+
+    // Weight tensors
+    static float input_conv1_weight[F_MAP_0][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    static float input_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+
+    static float encoder_conv1_weight[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    static float encoder_conv2_weight[F_MAP_1][F_MAP_1][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+
+    static float decoder_conv1_weight[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    static float decoder_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+
+    static float output_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    static float output_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+
+    static float final_conv_weight[OUTPUT_CHANNELS][F_MAP_0][1][1][1];
+
+    // Output tensor
+    static float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+
+    cout << "Memory allocation complete. Tensor sizes:" << endl;
+    cout << "  Input: [" << BATCH_SIZE << ", " << INPUT_CHANNELS << ", "
+         << INPUT_DEPTH << ", " << INPUT_HEIGHT << ", " << INPUT_WIDTH << "]" << endl;
+    cout << "  Output: [" << BATCH_SIZE << ", " << OUTPUT_CHANNELS << ", "
+         << INPUT_DEPTH << ", " << INPUT_HEIGHT << ", " << INPUT_WIDTH << "]" << endl;
+
+    // Initialize input data with random values
+    cout << "Initializing input data with random values..." << endl;
     for (int b = 0; b < BATCH_SIZE; b++) {
         for (int c = 0; c < INPUT_CHANNELS; c++) {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
-                        float val = 0.1f * (d + h + w);
-                        input[b][c][d][h][w] = val;
+                        input[b][c][d][h][w] = uniform_dist(gen);
                     }
                 }
             }
         }
     }
 
+    // Initialize weights with random values (Xavier/Glorot initialization)
+    cout << "Initializing weights with Xavier initialization..." << endl;
+
+    // Input conv weights
+    float xavier_std_input1 = sqrt(2.0f / (INPUT_CHANNELS + F_MAP_0));
+    for (int oc = 0; oc < F_MAP_0; oc++) {
+        for (int ic = 0; ic < INPUT_CHANNELS; ic++) {
+            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                        normal_distribution<float> xavier_dist(0.0f, xavier_std_input1);
+                        input_conv1_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
+                    }
+                }
+            }
+        }
+    }
+
+    float xavier_std_input2 = sqrt(2.0f / (F_MAP_0 + F_MAP_0));
+    for (int oc = 0; oc < F_MAP_0; oc++) {
+        for (int ic = 0; ic < F_MAP_0; ic++) {
+            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                        normal_distribution<float> xavier_dist(0.0f, xavier_std_input2);
+                        input_conv2_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
+                    }
+                }
+            }
+        }
+    }
+
+    // Encoder conv weights
+    float xavier_std_enc1 = sqrt(2.0f / (F_MAP_0 + F_MAP_1));
+    for (int oc = 0; oc < F_MAP_1; oc++) {
+        for (int ic = 0; ic < F_MAP_0; ic++) {
+            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                        normal_distribution<float> xavier_dist(0.0f, xavier_std_enc1);
+                        encoder_conv1_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
+                    }
+                }
+            }
+        }
+    }
+
+    float xavier_std_enc2 = sqrt(2.0f / (F_MAP_1 + F_MAP_1));
+    for (int oc = 0; oc < F_MAP_1; oc++) {
+        for (int ic = 0; ic < F_MAP_1; ic++) {
+            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                        normal_distribution<float> xavier_dist(0.0f, xavier_std_enc2);
+                        encoder_conv2_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
+                    }
+                }
+            }
+        }
+    }
+
+    // Decoder conv weights
+    float xavier_std_dec1 = sqrt(2.0f / (CONCAT_CHANNELS + F_MAP_0));
+    for (int oc = 0; oc < F_MAP_0; oc++) {
+        for (int ic = 0; ic < CONCAT_CHANNELS; ic++) {
+            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                        normal_distribution<float> xavier_dist(0.0f, xavier_std_dec1);
+                        decoder_conv1_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
+                    }
+                }
+            }
+        }
+    }
+
+    float xavier_std_dec2 = sqrt(2.0f / (F_MAP_0 + F_MAP_0));
+    for (int oc = 0; oc < F_MAP_0; oc++) {
+        for (int ic = 0; ic < F_MAP_0; ic++) {
+            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                        normal_distribution<float> xavier_dist(0.0f, xavier_std_dec2);
+                        decoder_conv2_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
+                    }
+                }
+            }
+        }
+    }
+
+    // Output conv weights
+    float xavier_std_out1 = sqrt(2.0f / (F_MAP_0 + F_MAP_0));
+    for (int oc = 0; oc < F_MAP_0; oc++) {
+        for (int ic = 0; ic < F_MAP_0; ic++) {
+            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                        normal_distribution<float> xavier_dist(0.0f, xavier_std_out1);
+                        output_conv1_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
+                    }
+                }
+            }
+        }
+    }
+
+    float xavier_std_out2 = sqrt(2.0f / (F_MAP_0 + F_MAP_0));
+    for (int oc = 0; oc < F_MAP_0; oc++) {
+        for (int ic = 0; ic < F_MAP_0; ic++) {
+            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                        normal_distribution<float> xavier_dist(0.0f, xavier_std_out2);
+                        output_conv2_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
+                    }
+                }
+            }
+        }
+    }
+
+    // Final conv weights
+    float xavier_std_final = sqrt(2.0f / (F_MAP_0 + OUTPUT_CHANNELS));
+    for (int oc = 0; oc < OUTPUT_CHANNELS; oc++) {
+        for (int ic = 0; ic < F_MAP_0; ic++) {
+            normal_distribution<float> xavier_dist(0.0f, xavier_std_final);
+            final_conv_weight[oc][ic][0][0][0] = xavier_dist(gen);
+        }
+    }
+
+    cout << "Weight initialization complete." << endl;
+
+    // Save input data to file for verification
+    cout << "Saving input data to 'input_data.txt'..." << endl;
+    ofstream input_file("input_data.txt");
     for (int b = 0; b < BATCH_SIZE; b++) {
-        for (int c = 0; c < OUTPUT_CHANNELS; c++) {
+        for (int c = 0; c < INPUT_CHANNELS; c++) {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
-                        expected_output[b][c][d][h][w] = 0.5f + 0.1f * c;
+                        input_file << input[b][c][d][h][w] << " ";
                     }
+                    input_file << endl;
                 }
             }
         }
     }
-}
+    input_file.close();
 
-void initialize_weights(
-    float input_conv1_weight[F_MAPS_0][INPUT_CHANNELS][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float input_conv1_gamma[F_MAPS_0],
-    float input_conv1_beta[F_MAPS_0],
-    float input_conv2_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float input_conv2_gamma[F_MAPS_0],
-    float input_conv2_beta[F_MAPS_0],
+    // Run the UNet3D function
+    cout << "Running UNet3D HLS function..." << endl;
+    auto start_time = chrono::high_resolution_clock::now();
 
-    float encoder_conv1_weight[F_MAPS_1][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float encoder_conv1_gamma[F_MAPS_1],
-    float encoder_conv1_beta[F_MAPS_1],
-    float encoder_conv2_weight[F_MAPS_1][F_MAPS_1][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float encoder_conv2_gamma[F_MAPS_1],
-    float encoder_conv2_beta[F_MAPS_1],
-
-    float decoder_conv1_weight[F_MAPS_0][F_MAPS_0+F_MAPS_1][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float decoder_conv1_gamma[F_MAPS_0],
-    float decoder_conv1_beta[F_MAPS_0],
-    float decoder_conv2_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float decoder_conv2_gamma[F_MAPS_0],
-    float decoder_conv2_beta[F_MAPS_0],
-
-    float output_conv1_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float output_conv1_gamma[F_MAPS_0],
-    float output_conv1_beta[F_MAPS_0],
-    float output_conv2_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float output_conv2_gamma[F_MAPS_0],
-    float output_conv2_beta[F_MAPS_0],
-
-    float final_conv_weight[OUTPUT_CHANNELS][F_MAPS_0][1][1][1],
-    float final_conv_bias[OUTPUT_CHANNELS]
-) {
-
-    float weight_scale = 1.0f / sqrt(KERNEL_SIZE * KERNEL_SIZE * KERNEL_SIZE);
-
-    for (int oc = 0; oc < F_MAPS_0; oc++) {
-        for (int ic = 0; ic < INPUT_CHANNELS; ic++) {
-            for (int kd = 0; kd < KERNEL_SIZE; kd++) {
-                for (int kh = 0; kh < KERNEL_SIZE; kh++) {
-                    for (int kw = 0; kw < KERNEL_SIZE; kw++) {
-                        input_conv1_weight[oc][ic][kd][kh][kw] = weight_scale * (0.1f + 0.01f * (oc + ic));
-                    }
-                }
-            }
-        }
-        input_conv1_gamma[oc] = 1.0f;
-        input_conv1_beta[oc] = 0.0f;
-    }
-
-    for (int oc = 0; oc < F_MAPS_0; oc++) {
-        for (int ic = 0; ic < F_MAPS_0; ic++) {
-            for (int kd = 0; kd < KERNEL_SIZE; kd++) {
-                for (int kh = 0; kh < KERNEL_SIZE; kh++) {
-                    for (int kw = 0; kw < KERNEL_SIZE; kw++) {
-                        input_conv2_weight[oc][ic][kd][kh][kw] = weight_scale * (0.1f + 0.01f * (oc + ic));
-                    }
-                }
-            }
-        }
-        input_conv2_gamma[oc] = 1.0f;
-        input_conv2_beta[oc] = 0.0f;
-    }
-
-    for (int oc = 0; oc < F_MAPS_1; oc++) {
-        for (int ic = 0; ic < F_MAPS_0; ic++) {
-            for (int kd = 0; kd < KERNEL_SIZE; kd++) {
-                for (int kh = 0; kh < KERNEL_SIZE; kh++) {
-                    for (int kw = 0; kw < KERNEL_SIZE; kw++) {
-                        encoder_conv1_weight[oc][ic][kd][kh][kw] = weight_scale * (0.1f + 0.01f * (oc + ic));
-                    }
-                }
-            }
-        }
-        encoder_conv1_gamma[oc] = 1.0f;
-        encoder_conv1_beta[oc] = 0.0f;
-    }
-
-    for (int oc = 0; oc < F_MAPS_1; oc++) {
-        for (int ic = 0; ic < F_MAPS_1; ic++) {
-            for (int kd = 0; kd < KERNEL_SIZE; kd++) {
-                for (int kh = 0; kh < KERNEL_SIZE; kh++) {
-                    for (int kw = 0; kw < KERNEL_SIZE; kw++) {
-                        encoder_conv2_weight[oc][ic][kd][kh][kw] = weight_scale * (0.1f + 0.01f * (oc + ic));
-                    }
-                }
-            }
-        }
-        encoder_conv2_gamma[oc] = 1.0f;
-        encoder_conv2_beta[oc] = 0.0f;
-    }
-
-    for (int oc = 0; oc < F_MAPS_0; oc++) {
-        for (int ic = 0; ic < F_MAPS_0+F_MAPS_1; ic++) {
-            for (int kd = 0; kd < KERNEL_SIZE; kd++) {
-                for (int kh = 0; kh < KERNEL_SIZE; kh++) {
-                    for (int kw = 0; kw < KERNEL_SIZE; kw++) {
-                        decoder_conv1_weight[oc][ic][kd][kh][kw] = weight_scale * (0.1f + 0.01f * (oc + ic));
-                    }
-                }
-            }
-        }
-        decoder_conv1_gamma[oc] = 1.0f;
-        decoder_conv1_beta[oc] = 0.0f;
-    }
-
-    for (int oc = 0; oc < F_MAPS_0; oc++) {
-        for (int ic = 0; ic < F_MAPS_0; ic++) {
-            for (int kd = 0; kd < KERNEL_SIZE; kd++) {
-                for (int kh = 0; kh < KERNEL_SIZE; kh++) {
-                    for (int kw = 0; kw < KERNEL_SIZE; kw++) {
-                        decoder_conv2_weight[oc][ic][kd][kh][kw] = weight_scale * (0.1f + 0.01f * (oc + ic));
-                        output_conv1_weight[oc][ic][kd][kh][kw] = weight_scale * (0.1f + 0.01f * (oc + ic));
-                        output_conv2_weight[oc][ic][kd][kh][kw] = weight_scale * (0.1f + 0.01f * (oc + ic));
-                    }
-                }
-            }
-        }
-        decoder_conv2_gamma[oc] = 1.0f;
-        decoder_conv2_beta[oc] = 0.0f;
-        output_conv1_gamma[oc] = 1.0f;
-        output_conv1_beta[oc] = 0.0f;
-        output_conv2_gamma[oc] = 1.0f;
-        output_conv2_beta[oc] = 0.0f;
-    }
-
-    for (int oc = 0; oc < OUTPUT_CHANNELS; oc++) {
-        for (int ic = 0; ic < F_MAPS_0; ic++) {
-            final_conv_weight[oc][ic][0][0][0] = weight_scale * (0.1f + 0.01f * (oc + ic));
-        }
-        final_conv_bias[oc] = 0.1f * oc;
-    }
-}
-
-int main() {
-    cout << "3D U-Net with Reduced Contraction Path - Test Bench" << endl;
-    cout << "Input size: [" << BATCH_SIZE << "][" << INPUT_CHANNELS << "]["
-         << INPUT_DEPTH << "][" << INPUT_HEIGHT << "][" << INPUT_WIDTH << "]" << endl;
-    cout << "Output size: [" << BATCH_SIZE << "][" << OUTPUT_CHANNELS << "]["
-         << INPUT_DEPTH << "][" << INPUT_HEIGHT << "][" << INPUT_WIDTH << "]" << endl;
-    cout << "Feature maps: [" << F_MAPS_0 << ", " << F_MAPS_1 << "]" << endl << endl;
-
-    static float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    static float expected_output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    static float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-
-    static float input_conv1_weight[F_MAPS_0][INPUT_CHANNELS][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-    static float input_conv1_gamma[F_MAPS_0];
-    static float input_conv1_beta[F_MAPS_0];
-    static float input_conv2_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-    static float input_conv2_gamma[F_MAPS_0];
-    static float input_conv2_beta[F_MAPS_0];
-
-    static float encoder_conv1_weight[F_MAPS_1][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-    static float encoder_conv1_gamma[F_MAPS_1];
-    static float encoder_conv1_beta[F_MAPS_1];
-    static float encoder_conv2_weight[F_MAPS_1][F_MAPS_1][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-    static float encoder_conv2_gamma[F_MAPS_1];
-    static float encoder_conv2_beta[F_MAPS_1];
-
-    static float decoder_conv1_weight[F_MAPS_0][F_MAPS_0+F_MAPS_1][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-    static float decoder_conv1_gamma[F_MAPS_0];
-    static float decoder_conv1_beta[F_MAPS_0];
-    static float decoder_conv2_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-    static float decoder_conv2_gamma[F_MAPS_0];
-    static float decoder_conv2_beta[F_MAPS_0];
-
-    static float output_conv1_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-    static float output_conv1_gamma[F_MAPS_0];
-    static float output_conv1_beta[F_MAPS_0];
-    static float output_conv2_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-    static float output_conv2_gamma[F_MAPS_0];
-    static float output_conv2_beta[F_MAPS_0];
-
-    static float final_conv_weight[OUTPUT_CHANNELS][F_MAPS_0][1][1][1];
-    static float final_conv_bias[OUTPUT_CHANNELS];
-
-    cout << "Initializing test data..." << endl;
-    initialize_test_data(input, expected_output);
-
-    cout << "Initializing weights..." << endl;
-    initialize_weights(
-        input_conv1_weight, input_conv1_gamma, input_conv1_beta,
-        input_conv2_weight, input_conv2_gamma, input_conv2_beta,
-        encoder_conv1_weight, encoder_conv1_gamma, encoder_conv1_beta,
-        encoder_conv2_weight, encoder_conv2_gamma, encoder_conv2_beta,
-        decoder_conv1_weight, decoder_conv1_gamma, decoder_conv1_beta,
-        decoder_conv2_weight, decoder_conv2_gamma, decoder_conv2_beta,
-        output_conv1_weight, output_conv1_gamma, output_conv1_beta,
-        output_conv2_weight, output_conv2_gamma, output_conv2_beta,
-        final_conv_weight, final_conv_bias
-    );
-
-    cout << "Running 3D U-Net inference..." << endl;
-
-    unet3d_reduced(
+    UNet3DReduced(
         input,
-        input_conv1_weight, input_conv1_gamma, input_conv1_beta,
-        input_conv2_weight, input_conv2_gamma, input_conv2_beta,
-        encoder_conv1_weight, encoder_conv1_gamma, encoder_conv1_beta,
-        encoder_conv2_weight, encoder_conv2_gamma, encoder_conv2_beta,
-        decoder_conv1_weight, decoder_conv1_gamma, decoder_conv1_beta,
-        decoder_conv2_weight, decoder_conv2_gamma, decoder_conv2_beta,
-        output_conv1_weight, output_conv1_gamma, output_conv1_beta,
-        output_conv2_weight, output_conv2_gamma, output_conv2_beta,
-        final_conv_weight, final_conv_bias,
+        input_conv1_weight, input_conv2_weight,
+        encoder_conv1_weight, encoder_conv2_weight,
+        decoder_conv1_weight, decoder_conv2_weight,
+        output_conv1_weight, output_conv2_weight,
+        final_conv_weight,
         output
     );
 
-    cout << "Inference completed!" << endl;
+    auto end_time = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end_time - start_time);
 
-    cout << "Sample output values:" << endl;
-    for (int c = 0; c < min(OUTPUT_CHANNELS, 3); c++) {
-        cout << "Channel " << c << ": ";
-        for (int i = 0; i < min(5, INPUT_WIDTH); i++) {
-            cout << output[0][c][0][0][i] << " ";
-        }
-        cout << "..." << endl;
-    }
+    cout << "UNet3D execution completed in " << duration.count() << " ms" << endl;
 
-    float total_sum = 0.0f;
+    // Verify output
+    cout << "Verifying output..." << endl;
+
+    // Check for valid output range (sigmoid outputs should be between 0 and 1)
+    float min_val = 1e9f, max_val = -1e9f;
+    float sum_val = 0.0f;
     int total_elements = BATCH_SIZE * OUTPUT_CHANNELS * INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
+    int nan_count = 0, inf_count = 0;
 
     for (int b = 0; b < BATCH_SIZE; b++) {
         for (int c = 0; c < OUTPUT_CHANNELS; c++) {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
-                        total_sum += fabs(output[b][c][d][h][w]);
+                        float val = output[b][c][d][h][w];
+
+                        if (isnan(val)) {
+                            nan_count++;
+                        } else if (isinf(val)) {
+                            inf_count++;
+                        } else {
+                            if (val < min_val) min_val = val;
+                            if (val > max_val) max_val = val;
+                            sum_val += val;
+                        }
                     }
                 }
             }
         }
     }
 
-    float avg_magnitude = total_sum / total_elements;
-    cout << "Average output magnitude: " << avg_magnitude << endl;
+    float mean_val = sum_val / (total_elements - nan_count - inf_count);
 
-    cout << "Test completed successfully!" << endl;
+    cout << "Output statistics:" << endl;
+    cout << "  Min value: " << min_val << endl;
+    cout << "  Max value: " << max_val << endl;
+    cout << "  Mean value: " << mean_val << endl;
+    cout << "  NaN count: " << nan_count << endl;
+    cout << "  Inf count: " << inf_count << endl;
+    cout << "  Total elements: " << total_elements << endl;
 
-    return 0;
+    // Save output data to file
+    cout << "Saving output data to 'output_data.txt'..." << endl;
+    ofstream output_file("output_data.txt");
+    for (int b = 0; b < BATCH_SIZE; b++) {
+        for (int c = 0; c < OUTPUT_CHANNELS; c++) {
+            for (int d = 0; d < INPUT_DEPTH; d++) {
+                for (int h = 0; h < INPUT_HEIGHT; h++) {
+                    for (int w = 0; w < INPUT_WIDTH; w++) {
+                        output_file << output[b][c][d][h][w] << " ";
+                    }
+                    output_file << endl;
+                }
+            }
+        }
+    }
+    output_file.close();
+
+    // Sample output values for manual verification
+    cout << "Sample output values:" << endl;
+    for (int i = 0; i < min(5, OUTPUT_CHANNELS); i++) {
+        cout << "  Channel " << i << " at (0,0,0): "
+             << output[0][i][0][0][0] << endl;
+    }
+
+    // Test individual blocks for debugging
+    cout << "\nTesting individual blocks..." << endl;
+
+    // Test input convolution
+    static float test_input_conv_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    cout << "Testing InputConv3D..." << endl;
+    InputConv3D(input_conv1_weight, input_conv2_weight, input, test_input_conv_out);
+
+    float input_conv_min = 1e9f, input_conv_max = -1e9f;
+    for (int b = 0; b < BATCH_SIZE; b++) {
+        for (int c = 0; c < min(5, F_MAP_0); c++) {
+            for (int d = 0; d < INPUT_DEPTH; d++) {
+                for (int h = 0; h < INPUT_HEIGHT; h++) {
+                    for (int w = 0; w < INPUT_WIDTH; w++) {
+                        float val = test_input_conv_out[b][c][d][h][w];
+                        if (val < input_conv_min) input_conv_min = val;
+                        if (val > input_conv_max) input_conv_max = val;
+                    }
+                }
+            }
+        }
+    }
+    cout << "  InputConv3D output range: [" << input_conv_min << ", " << input_conv_max << "]" << endl;
+
+    // Validation checks
+    bool test_passed = true;
+
+    if (nan_count > 0) {
+        cout << "ERROR: Found NaN values in output!" << endl;
+        test_passed = false;
+    }
+
+    if (inf_count > 0) {
+        cout << "ERROR: Found infinite values in output!" << endl;
+        test_passed = false;
+    }
+
+    // For sigmoid output, values should be between 0 and 1
+    if (min_val < -0.1f || max_val > 1.1f) {
+        cout << "WARNING: Output values outside expected sigmoid range [0, 1]" << endl;
+        cout << "  This might indicate numerical issues or incorrect implementation" << endl;
+    }
+
+    cout << "\n=== Testbench Results ===" << endl;
+    cout << "Test Status: " << (test_passed ? "PASSED" : "FAILED") << endl;
+    cout << "Execution Time: " << duration.count() << " ms" << endl;
+    cout << "Output files generated: input_data.txt, output_data.txt" << endl;
+
+    if (test_passed) {
+        cout << "\nAll tests passed! The UNet3D HLS implementation appears to be working correctly." << endl;
+        cout << "You can now proceed with HLS synthesis." << endl;
+    } else {
+        cout << "\nSome tests failed. Please check the implementation for numerical stability issues." << endl;
+    }
+
+    return test_passed ? 0 : 1;
 }

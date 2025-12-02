@@ -14,114 +14,133 @@
 
 using namespace std;
 
+// Network configuration constants
+// Default configuration for UNet3DFPGAModular with f_maps=[64, 128]
 #define BATCH_SIZE 1
 #define INPUT_CHANNELS 1
-#define F_MAPS_0 64
-#define F_MAPS_1 128
-#define OUTPUT_CHANNELS 5
-#define INPUT_DEPTH 43
-#define INPUT_HEIGHT 43
-#define INPUT_WIDTH 11
-#define KERNEL_SIZE 3
-#define PADDING 1
-#define STRIDE 1
-#define POOL_SIZE 2
+#define F_MAP_0 64
+#define F_MAP_1 128
+
+// Input dimensions (configurable based on dataset)
+#define INPUT_DEPTH 32
+#define INPUT_HEIGHT 32
+#define INPUT_WIDTH 32
+#define OUTPUT_CHANNELS 2  // Segmentation classes
+
+// Convolution parameters
+#define CONV_KERNEL 3
+#define CONV_PADDING 1
+#define CONV_STRIDE 1
+
+// Pooling parameters
+#define POOL_KERNEL 2
 #define POOL_STRIDE 2
-#define NUM_GROUPS 8
-#define EPSILON 1e-5f
-#define HALF_DEPTH (INPUT_DEPTH/2)
-#define HALF_HEIGHT (INPUT_HEIGHT/2)
-#define HALF_WIDTH (INPUT_WIDTH/2)
 
-// Function declarations
-void InputConv3dBlock(
+// Calculated dimensions
+#define PADDED_DEPTH (INPUT_DEPTH + 2 * CONV_PADDING)
+#define PADDED_HEIGHT (INPUT_HEIGHT + 2 * CONV_PADDING)
+#define PADDED_WIDTH (INPUT_WIDTH + 2 * CONV_PADDING)
+
+#define CONV_OUTPUT_DEPTH ((INPUT_DEPTH + 2 * CONV_PADDING - CONV_KERNEL) / CONV_STRIDE + 1)
+#define CONV_OUTPUT_HEIGHT ((INPUT_HEIGHT + 2 * CONV_PADDING - CONV_KERNEL) / CONV_STRIDE + 1)
+#define CONV_OUTPUT_WIDTH ((INPUT_WIDTH + 2 * CONV_PADDING - CONV_KERNEL) / CONV_STRIDE + 1)
+
+#define POOL_OUTPUT_DEPTH (CONV_OUTPUT_DEPTH / POOL_STRIDE)
+#define POOL_OUTPUT_HEIGHT (CONV_OUTPUT_HEIGHT / POOL_STRIDE)
+#define POOL_OUTPUT_WIDTH (CONV_OUTPUT_WIDTH / POOL_STRIDE)
+
+#define UPSAMPLE_OUTPUT_DEPTH (POOL_OUTPUT_DEPTH * 2)
+#define UPSAMPLE_OUTPUT_HEIGHT (POOL_OUTPUT_HEIGHT * 2)
+#define UPSAMPLE_OUTPUT_WIDTH (POOL_OUTPUT_WIDTH * 2)
+
+#define CONCAT_CHANNELS (F_MAP_0 + F_MAP_1)
+
+// Function declarations for individual blocks
+
+// Input convolution block: INPUT_CHANNELS -> F_MAP_0
+void InputConv3D(
+    float kernel1[F_MAP_0][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float kernel2[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
     float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    float conv1_kernel[F_MAPS_0][INPUT_CHANNELS][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float conv1_gamma[F_MAPS_0],
-    float conv1_beta[F_MAPS_0],
-    float conv2_kernel[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float conv2_gamma[F_MAPS_0],
-    float conv2_beta[F_MAPS_0],
-    float output[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+    float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );
 
-void EncoderConv3dBlock(
-    float input[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH/2][INPUT_HEIGHT/2][INPUT_WIDTH/2],
-    float conv1_kernel[F_MAPS_1][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float conv1_gamma[F_MAPS_1],
-    float conv1_beta[F_MAPS_1],
-    float conv2_kernel[F_MAPS_1][F_MAPS_1][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float conv2_gamma[F_MAPS_1],
-    float conv2_beta[F_MAPS_1],
-    float output[BATCH_SIZE][F_MAPS_1][INPUT_DEPTH/2][INPUT_HEIGHT/2][INPUT_WIDTH/2]
+// MaxPool3D block: spatial downsampling by 2
+void EncoderMaxPool3D(
+    float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float output[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
 );
 
-void DecoderConv3dBlock(
-    float input[BATCH_SIZE][F_MAPS_0+F_MAPS_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    float conv1_kernel[F_MAPS_0][F_MAPS_0+F_MAPS_1][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float conv1_gamma[F_MAPS_0],
-    float conv1_beta[F_MAPS_0],
-    float conv2_kernel[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float conv2_gamma[F_MAPS_0],
-    float conv2_beta[F_MAPS_0],
-    float output[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+// Encoder convolution block: F_MAP_0 -> F_MAP_1
+void EncoderConv3D(
+    float kernel1[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float kernel2[F_MAP_1][F_MAP_1][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float input[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+    float output[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
 );
 
-void OutputConv3dBlock(
-    float input[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    float conv1_kernel[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float conv1_gamma[F_MAPS_0],
-    float conv1_beta[F_MAPS_0],
-    float conv2_kernel[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float conv2_gamma[F_MAPS_0],
-    float conv2_beta[F_MAPS_0],
-    float output[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+// Nearest neighbor upsampling: spatial upsampling by 2
+void DecoderUpsample3D(
+    float input[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+    float output[BATCH_SIZE][F_MAP_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );
 
-void MaxPool3d(
-    float input[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    float output[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH/2][INPUT_HEIGHT/2][INPUT_WIDTH/2]
+// Decoder convolution block: CONCAT_CHANNELS -> F_MAP_0
+void DecoderConv3D(
+    float kernel1[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float kernel2[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float input[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );
 
-void NearestUpsample3d(
-    float input[BATCH_SIZE][F_MAPS_1][INPUT_DEPTH/2][INPUT_HEIGHT/2][INPUT_WIDTH/2],
-    float output[BATCH_SIZE][F_MAPS_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+// Output convolution block: F_MAP_0 -> F_MAP_0
+void OutputConv3D(
+    float kernel1[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float kernel2[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );
 
-void Concatenate3d(
-    float input1[BATCH_SIZE][F_MAPS_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    float input2[BATCH_SIZE][F_MAPS_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    float output[BATCH_SIZE][F_MAPS_0+F_MAPS_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+// Final 1x1 convolution: F_MAP_0 -> OUTPUT_CHANNELS
+void FinalConv1x1(
+    float kernel[OUTPUT_CHANNELS][F_MAP_0][1][1][1],
+    float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );
 
-void unet3d_reduced(
+// Utility functions for concatenation and activation
+void ConcatenateTensors(
+    float tensor1[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float tensor2[BATCH_SIZE][F_MAP_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float output[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+);
+
+void Sigmoid3D(
+    float input[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+);
+
+// Top-level UNet3D function
+void UNet3DReduced(
+    // Input
     float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    float input_conv1_weight[F_MAPS_0][INPUT_CHANNELS][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float input_conv1_gamma[F_MAPS_0],
-    float input_conv1_beta[F_MAPS_0],
-    float input_conv2_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float input_conv2_gamma[F_MAPS_0],
-    float input_conv2_beta[F_MAPS_0],
-    float encoder_conv1_weight[F_MAPS_1][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float encoder_conv1_gamma[F_MAPS_1],
-    float encoder_conv1_beta[F_MAPS_1],
-    float encoder_conv2_weight[F_MAPS_1][F_MAPS_1][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float encoder_conv2_gamma[F_MAPS_1],
-    float encoder_conv2_beta[F_MAPS_1],
-    float decoder_conv1_weight[F_MAPS_0][F_MAPS_0+F_MAPS_1][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float decoder_conv1_gamma[F_MAPS_0],
-    float decoder_conv1_beta[F_MAPS_0],
-    float decoder_conv2_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float decoder_conv2_gamma[F_MAPS_0],
-    float decoder_conv2_beta[F_MAPS_0],
-    float output_conv1_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float output_conv1_gamma[F_MAPS_0],
-    float output_conv1_beta[F_MAPS_0],
-    float output_conv2_weight[F_MAPS_0][F_MAPS_0][KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE],
-    float output_conv2_gamma[F_MAPS_0],
-    float output_conv2_beta[F_MAPS_0],
-    float final_conv_weight[OUTPUT_CHANNELS][F_MAPS_0][1][1][1],
-    float final_conv_bias[OUTPUT_CHANNELS],
+
+    // Weights for all layers
+    float input_conv1_weight[F_MAP_0][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float input_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+
+    float encoder_conv1_weight[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float encoder_conv2_weight[F_MAP_1][F_MAP_1][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+
+    float decoder_conv1_weight[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float decoder_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+
+    float output_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float output_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+
+    float final_conv_weight[OUTPUT_CHANNELS][F_MAP_0][1][1][1],
+
+    // Output
     float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );
 

@@ -8,30 +8,11 @@ This is the DarkSHINE Experiment Trigger project - a Xilinx Vitis HLS implementa
 
 ## Development Commands
 
-### Weight Conversion
-```bash
-# Convert PyTorch checkpoints to HLS-compatible weights
-python3 convert_weights.py
-
-# Analyze checkpoint contents (debugging)
-python3 analyze_checkpoints.py
-```
-
-### C++ Alternative Weight Conversion
-```bash
-# Compile the C++ weight converter
-g++ -o checkpoint_converter checkpoint_converter.cpp
-
-# Run the converter
-./checkpoint_converter
-```
-
 ### HLS Development
 The project uses Xilinx Vitis HLS with configuration in `hls_component/hls_config.cfg`.
 Target FPGA: xczu15eg-ffvb1156-2-i
 
 Key HLS files:
-- `hls_component/unet3d_reduced.cpp` - Main implementation
 - `hls_component/testbench.cpp` - Verification testbench
 - `hls_component/unet_weights.h` - Generated weight headers
 - `hls_component/unet_weights_data.cpp` - Generated weight data
@@ -71,11 +52,6 @@ When modifying weights:
 2. Run `convert_weights.py` to regenerate weight files
 3. Ensure `unet_weights.h` and `unet_weights_data.cpp` are updated
 4. Recompile HLS components
-
-When modifying the network architecture:
-1. Update constants in `unet3d_reduced.cpp` (lines 14-28)
-2. Adjust memory buffer sizes accordingly
-3. Update testbench if input/output dimensions change
 
 ## Test
 

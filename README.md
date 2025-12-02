@@ -26,8 +26,6 @@ input(1) → Conv+ReLU → f_maps[0]=64 ─── concat ──→ f_maps[1]=128
 ## File Structure
 
 ### Core Implementation
-- `hls_component/unet3d_reduced.cpp` - Main HLS implementation with optimized memory management
-- `hls_component/testbench.cpp` - C++ test bench for functional verification
 
 ### Weight Conversion
 - `convert_weights.py` - PyTorch checkpoint to HLS weight converter

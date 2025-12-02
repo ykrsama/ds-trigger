@@ -96,20 +96,20 @@ class PyTorchToHLSConverter:
 
                 # First conv layer
                 conv1_weight, conv1_bias = self.extract_conv_weights(state_dict, 'conv_block.SingleConv1.conv')
-                conv1_gamma, conv1_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv1.groupnorm')
+                #conv1_gamma, conv1_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv1.groupnorm')
 
                 f.write("// === INPUT CONVOLUTION BLOCK ===\n")
                 f.write(self.format_array_for_cpp(conv1_weight, "input_conv1_weight"))
-                f.write(self.format_array_for_cpp(conv1_gamma, "input_conv1_gamma"))
-                f.write(self.format_array_for_cpp(conv1_beta, "input_conv1_beta"))
+                #f.write(self.format_array_for_cpp(conv1_gamma, "input_conv1_gamma"))
+                #f.write(self.format_array_for_cpp(conv1_beta, "input_conv1_beta"))
 
                 # Second conv layer
                 conv2_weight, conv2_bias = self.extract_conv_weights(state_dict, 'conv_block.SingleConv2.conv')
-                conv2_gamma, conv2_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv2.groupnorm')
+                #conv2_gamma, conv2_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv2.groupnorm')
 
                 f.write(self.format_array_for_cpp(conv2_weight, "input_conv2_weight"))
-                f.write(self.format_array_for_cpp(conv2_gamma, "input_conv2_gamma"))
-                f.write(self.format_array_for_cpp(conv2_beta, "input_conv2_beta"))
+                #f.write(self.format_array_for_cpp(conv2_gamma, "input_conv2_gamma"))
+                #f.write(self.format_array_for_cpp(conv2_beta, "input_conv2_beta"))
 
             # Encoder convolution block (64->128->128)
             if 'encoder_conv' in self.weights:
@@ -117,20 +117,20 @@ class PyTorchToHLSConverter:
 
                 # First conv layer
                 conv1_weight, conv1_bias = self.extract_conv_weights(state_dict, 'conv_block.SingleConv1.conv')
-                conv1_gamma, conv1_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv1.groupnorm')
+                #conv1_gamma, conv1_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv1.groupnorm')
 
                 f.write("// === ENCODER CONVOLUTION BLOCK ===\n")
                 f.write(self.format_array_for_cpp(conv1_weight, "encoder_conv1_weight"))
-                f.write(self.format_array_for_cpp(conv1_gamma, "encoder_conv1_gamma"))
-                f.write(self.format_array_for_cpp(conv1_beta, "encoder_conv1_beta"))
+                #f.write(self.format_array_for_cpp(conv1_gamma, "encoder_conv1_gamma"))
+                #f.write(self.format_array_for_cpp(conv1_beta, "encoder_conv1_beta"))
 
                 # Second conv layer
                 conv2_weight, conv2_bias = self.extract_conv_weights(state_dict, 'conv_block.SingleConv2.conv')
-                conv2_gamma, conv2_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv2.groupnorm')
+                #conv2_gamma, conv2_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv2.groupnorm')
 
                 f.write(self.format_array_for_cpp(conv2_weight, "encoder_conv2_weight"))
-                f.write(self.format_array_for_cpp(conv2_gamma, "encoder_conv2_gamma"))
-                f.write(self.format_array_for_cpp(conv2_beta, "encoder_conv2_beta"))
+                #f.write(self.format_array_for_cpp(conv2_gamma, "encoder_conv2_gamma"))
+                #f.write(self.format_array_for_cpp(conv2_beta, "encoder_conv2_beta"))
 
             # Decoder convolution block (192->64->64)
             if 'decoder_conv' in self.weights:
@@ -138,20 +138,20 @@ class PyTorchToHLSConverter:
 
                 # First conv layer
                 conv1_weight, conv1_bias = self.extract_conv_weights(state_dict, 'conv_block.SingleConv1.conv')
-                conv1_gamma, conv1_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv1.groupnorm')
+                #conv1_gamma, conv1_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv1.groupnorm')
 
                 f.write("// === DECODER CONVOLUTION BLOCK ===\n")
                 f.write(self.format_array_for_cpp(conv1_weight, "decoder_conv1_weight"))
-                f.write(self.format_array_for_cpp(conv1_gamma, "decoder_conv1_gamma"))
-                f.write(self.format_array_for_cpp(conv1_beta, "decoder_conv1_beta"))
+                #f.write(self.format_array_for_cpp(conv1_gamma, "decoder_conv1_gamma"))
+                #f.write(self.format_array_for_cpp(conv1_beta, "decoder_conv1_beta"))
 
                 # Second conv layer
                 conv2_weight, conv2_bias = self.extract_conv_weights(state_dict, 'conv_block.SingleConv2.conv')
-                conv2_gamma, conv2_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv2.groupnorm')
+                #conv2_gamma, conv2_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv2.groupnorm')
 
                 f.write(self.format_array_for_cpp(conv2_weight, "decoder_conv2_weight"))
-                f.write(self.format_array_for_cpp(conv2_gamma, "decoder_conv2_gamma"))
-                f.write(self.format_array_for_cpp(conv2_beta, "decoder_conv2_beta"))
+                #f.write(self.format_array_for_cpp(conv2_gamma, "decoder_conv2_gamma"))
+                #f.write(self.format_array_for_cpp(conv2_beta, "decoder_conv2_beta"))
 
             # Output convolution block (64->64->64)
             if 'output_conv' in self.weights:
@@ -159,20 +159,20 @@ class PyTorchToHLSConverter:
 
                 # First conv layer
                 conv1_weight, conv1_bias = self.extract_conv_weights(state_dict, 'conv_block.SingleConv1.conv')
-                conv1_gamma, conv1_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv1.groupnorm')
+                #conv1_gamma, conv1_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv1.groupnorm')
 
                 f.write("// === OUTPUT CONVOLUTION BLOCK ===\n")
                 f.write(self.format_array_for_cpp(conv1_weight, "output_conv1_weight"))
-                f.write(self.format_array_for_cpp(conv1_gamma, "output_conv1_gamma"))
-                f.write(self.format_array_for_cpp(conv1_beta, "output_conv1_beta"))
+                #f.write(self.format_array_for_cpp(conv1_gamma, "output_conv1_gamma"))
+                #f.write(self.format_array_for_cpp(conv1_beta, "output_conv1_beta"))
 
                 # Second conv layer
                 conv2_weight, conv2_bias = self.extract_conv_weights(state_dict, 'conv_block.SingleConv2.conv')
-                conv2_gamma, conv2_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv2.groupnorm')
+                #conv2_gamma, conv2_beta = self.extract_groupnorm_weights(state_dict, 'conv_block.SingleConv2.groupnorm')
 
                 f.write(self.format_array_for_cpp(conv2_weight, "output_conv2_weight"))
-                f.write(self.format_array_for_cpp(conv2_gamma, "output_conv2_gamma"))
-                f.write(self.format_array_for_cpp(conv2_beta, "output_conv2_beta"))
+                #f.write(self.format_array_for_cpp(conv2_gamma, "output_conv2_gamma"))
+                #f.write(self.format_array_for_cpp(conv2_beta, "output_conv2_beta"))
 
             # Final convolution (64->5)
             if 'final_conv' in self.weights:
@@ -204,38 +204,38 @@ class PyTorchToHLSConverter:
             # Input convolution weights (1->64->64)
             f.write("// Input Convolution Block: 1 -> 64 -> 64 channels\n")
             f.write("extern float input_conv1_weight[];\n")
-            f.write("extern float input_conv1_gamma[];\n")
-            f.write("extern float input_conv1_beta[];\n")
+            #f.write("extern float input_conv1_gamma[];\n")
+            #f.write("extern float input_conv1_beta[];\n")
             f.write("extern float input_conv2_weight[];\n")
-            f.write("extern float input_conv2_gamma[];\n")
-            f.write("extern float input_conv2_beta[];\n\n")
+            #f.write("extern float input_conv2_gamma[];\n")
+            #f.write("extern float input_conv2_beta[];\n\n")
 
             # Encoder convolution weights (64->128->128)
             f.write("// Encoder Convolution Block: 64 -> 128 -> 128 channels\n")
             f.write("extern float encoder_conv1_weight[];\n")
-            f.write("extern float encoder_conv1_gamma[];\n")
-            f.write("extern float encoder_conv1_beta[];\n")
+            #f.write("extern float encoder_conv1_gamma[];\n")
+            #f.write("extern float encoder_conv1_beta[];\n")
             f.write("extern float encoder_conv2_weight[];\n")
-            f.write("extern float encoder_conv2_gamma[];\n")
-            f.write("extern float encoder_conv2_beta[];\n\n")
+            #f.write("extern float encoder_conv2_gamma[];\n")
+            #f.write("extern float encoder_conv2_beta[];\n\n")
 
             # Decoder convolution weights (192->64->64)
             f.write("// Decoder Convolution Block: 192 -> 64 -> 64 channels\n")
             f.write("extern float decoder_conv1_weight[];\n")
-            f.write("extern float decoder_conv1_gamma[];\n")
-            f.write("extern float decoder_conv1_beta[];\n")
+            #f.write("extern float decoder_conv1_gamma[];\n")
+            #f.write("extern float decoder_conv1_beta[];\n")
             f.write("extern float decoder_conv2_weight[];\n")
-            f.write("extern float decoder_conv2_gamma[];\n")
-            f.write("extern float decoder_conv2_beta[];\n\n")
+            #f.write("extern float decoder_conv2_gamma[];\n")
+            #f.write("extern float decoder_conv2_beta[];\n\n")
 
             # Output convolution weights (64->64->64)
             f.write("// Output Convolution Block: 64 -> 64 -> 64 channels\n")
             f.write("extern float output_conv1_weight[];\n")
-            f.write("extern float output_conv1_gamma[];\n")
-            f.write("extern float output_conv1_beta[];\n")
+            #f.write("extern float output_conv1_gamma[];\n")
+            #f.write("extern float output_conv1_beta[];\n")
             f.write("extern float output_conv2_weight[];\n")
-            f.write("extern float output_conv2_gamma[];\n")
-            f.write("extern float output_conv2_beta[];\n\n")
+            #f.write("extern float output_conv2_gamma[];\n")
+            #f.write("extern float output_conv2_beta[];\n\n")
 
             # Final convolution weights (64->5)
             f.write("// Final Convolution: 64 -> 5 channels\n")
@@ -247,7 +247,7 @@ class PyTorchToHLSConverter:
         print(f"Generated {output_file}")
 
 def main():
-    converter = PyTorchToHLSConverter("./block_checkpoints")
+    converter = PyTorchToHLSConverter("./best_modular_blocks")
 
     # Generate header and data files
     converter.generate_weight_header()

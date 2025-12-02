@@ -31,6 +31,31 @@ void EncoderConv3D_2(
     float output[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
 );
 
+void EncoderGroupNorm3D_1(
+    float input_data[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+    float gamma[F_MAP_0],
+    float beta[F_MAP_0],
+    float output_data[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
+);
+
+void EncoderGroupNorm3D_2(
+    float input_data[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+    float gamma[F_MAP_0],
+    float beta[F_MAP_0],
+    float output_data[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
+);
+
+void EncoderDoubleConv3D(
+    float encoder_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float encoder_conv1_gamma[F_MAP_0],
+    float encoder_conv1_beta[F_MAP_0],
+    float encoder_conv2_weight[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float encoder_conv2_gamma[F_MAP_0],
+    float encoder_conv2_beta[F_MAP_0],
+    float input[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+    float output[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
+);
+
 // Encoder path function implementations
 
 void EncoderMaxPool3D(
@@ -383,6 +408,203 @@ void EncoderConv3D_2(
             }
         }
     }
+}
+
+void EncoderGroupNorm3D_1(
+    float input_data[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+    float gamma[F_MAP_0],
+    float beta[F_MAP_0],
+    float output_data[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
+) {
+    int CHANNELS_PER_GROUP = F_MAP_0 / NUM_GROUPS;
+    float N = (float)(POOL_OUTPUT_DEPTH * POOL_OUTPUT_HEIGHT * POOL_OUTPUT_WIDTH * CHANNELS_PER_GROUP);
+
+    float gn_buffer[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
+    #pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=uram
+
+    float group_sum[NUM_GROUPS];
+    float group_sq_sum[NUM_GROUPS];
+    #pragma HLS array_partition variable=group_sum complete
+    #pragma HLS array_partition variable=group_sq_sum complete
+
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        #pragma HLS unroll
+        group_sum[g] = (float)0.000000;
+        group_sq_sum[g] = (float)0.000000;
+    }
+
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int ch = 0; ch < F_MAP_0; ch++) {
+            for (int depth = 0; depth < POOL_OUTPUT_DEPTH; depth++) {
+                for (int height = 0; height < POOL_OUTPUT_HEIGHT; height++) {
+                    for (int width = 0; width < POOL_OUTPUT_WIDTH; width++) {
+                        int group_idx = ch / CHANNELS_PER_GROUP;
+
+                        float value = input_data[batch][ch][depth][height][width];
+
+                        gn_buffer[batch][ch][depth][height][width] = value;
+
+                        group_sum[group_idx] += value;
+                        group_sq_sum[group_idx] += (value * value);
+                    }
+                }
+            }
+        }
+    }
+
+    float mean[NUM_GROUPS];
+    float inv_std[NUM_GROUPS];
+    #pragma HLS array_partition variable=mean complete
+    #pragma HLS array_partition variable=inv_std complete
+
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        #pragma HLS unroll
+        float mu = group_sum[g] / N;
+        float variance = (group_sq_sum[g] / N) - (mu * mu);
+        float sigma = sqrt(variance + EPSILON);
+
+        mean[g] = mu;
+        inv_std[g] = float(1) / sigma;
+    }
+
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < POOL_OUTPUT_DEPTH; depth++) {
+            for (int height = 0; height < POOL_OUTPUT_HEIGHT; height++) {
+                for (int width = 0; width < POOL_OUTPUT_WIDTH; width++) {
+                    #pragma HLS pipeline II=1
+                    for (int ch = 0; ch < F_MAP_0; ch++) {
+                        int group_idx = ch / CHANNELS_PER_GROUP;
+
+                        float value = gn_buffer[batch][ch][depth][height][width];
+
+                        float gamma_param = gamma[ch];
+                        float beta_param = beta[ch];
+
+                        float group_mean = mean[group_idx];
+                        float group_inv_std = inv_std[group_idx];
+
+                        float normalized_value = (value - group_mean) * group_inv_std;
+
+                        float output_value = normalized_value * gamma_param + beta_param;
+
+                        output_data[batch][ch][depth][height][width] = output_value;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void EncoderGroupNorm3D_2(
+    float input_data[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+    float gamma[F_MAP_0],
+    float beta[F_MAP_0],
+    float output_data[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
+) {
+    int CHANNELS_PER_GROUP = F_MAP_0 / NUM_GROUPS;
+    float N = (float)(POOL_OUTPUT_DEPTH * POOL_OUTPUT_HEIGHT * POOL_OUTPUT_WIDTH * CHANNELS_PER_GROUP);
+
+    float gn_buffer[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
+    #pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=uram
+
+    float group_sum[NUM_GROUPS];
+    float group_sq_sum[NUM_GROUPS];
+    #pragma HLS array_partition variable=group_sum complete
+    #pragma HLS array_partition variable=group_sq_sum complete
+
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        #pragma HLS unroll
+        group_sum[g] = (float)0.000000;
+        group_sq_sum[g] = (float)0.000000;
+    }
+
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int ch = 0; ch < F_MAP_0; ch++) {
+            for (int depth = 0; depth < POOL_OUTPUT_DEPTH; depth++) {
+                for (int height = 0; height < POOL_OUTPUT_HEIGHT; height++) {
+                    for (int width = 0; width < POOL_OUTPUT_WIDTH; width++) {
+                        int group_idx = ch / CHANNELS_PER_GROUP;
+
+                        float value = input_data[batch][ch][depth][height][width];
+
+                        gn_buffer[batch][ch][depth][height][width] = value;
+
+                        group_sum[group_idx] += value;
+                        group_sq_sum[group_idx] += (value * value);
+                    }
+                }
+            }
+        }
+    }
+
+    float mean[NUM_GROUPS];
+    float inv_std[NUM_GROUPS];
+    #pragma HLS array_partition variable=mean complete
+    #pragma HLS array_partition variable=inv_std complete
+
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        #pragma HLS unroll
+        float mu = group_sum[g] / N;
+        float variance = (group_sq_sum[g] / N) - (mu * mu);
+        float sigma = sqrt(variance + EPSILON);
+
+        mean[g] = mu;
+        inv_std[g] = float(1) / sigma;
+    }
+
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < POOL_OUTPUT_DEPTH; depth++) {
+            for (int height = 0; height < POOL_OUTPUT_HEIGHT; height++) {
+                for (int width = 0; width < POOL_OUTPUT_WIDTH; width++) {
+                    #pragma HLS pipeline II=1
+                    for (int ch = 0; ch < F_MAP_0; ch++) {
+                        int group_idx = ch / CHANNELS_PER_GROUP;
+
+                        float value = gn_buffer[batch][ch][depth][height][width];
+
+                        float gamma_param = gamma[ch];
+                        float beta_param = beta[ch];
+
+                        float group_mean = mean[group_idx];
+                        float group_inv_std = inv_std[group_idx];
+
+                        float normalized_value = (value - group_mean) * group_inv_std;
+
+                        float output_value = normalized_value * gamma_param + beta_param;
+
+                        output_data[batch][ch][depth][height][width] = output_value;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void EncoderDoubleConv3D(
+    float encoder_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float encoder_conv1_gamma[F_MAP_0],
+    float encoder_conv1_beta[F_MAP_0],
+    float encoder_conv2_weight[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float encoder_conv2_gamma[F_MAP_0],
+    float encoder_conv2_beta[F_MAP_0],
+    float input[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+    float output[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
+) {
+    #pragma HLS dataflow
+
+    float gn1_out[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
+    #pragma HLS stream variable=gn1_out depth=10 type=fifo
+
+    float conv1_out[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
+    #pragma HLS stream variable=conv1_out depth=10 type=fifo
+
+    float gn2_out[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
+    #pragma HLS stream variable=gn2_out depth=10 type=fifo
+
+    EncoderGroupNorm3D_1(input, encoder_conv1_gamma, encoder_conv1_beta, gn1_out);
+    EncoderConv3D_1(encoder_conv1_weight, gn1_out, conv1_out);
+    EncoderGroupNorm3D_2(conv1_out, encoder_conv2_gamma, encoder_conv2_beta, gn2_out);
+    EncoderConv3D_2(encoder_conv2_weight, gn2_out, output);
 }
 
 

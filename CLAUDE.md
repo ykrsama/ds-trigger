@@ -27,11 +27,29 @@ This repository contains a Xilinx Vitis HLS implementation of a 3D U-Net with re
 ### U-Net Network Structure
 The reduced U-Net follows this architecture:
 ```
-input(1) → Conv+ReLU → f_maps[0]=64 ─── concat ──→ f_maps[1]=128 → Conv+ReLU → f_maps[0]=64 → Conv+ReLU → output(2)
-                          │                         ↑
-                       MaxPool                  Upsampling
-                          ↓                         │
-                       f_maps[0]=64 → Conv+ReLU → f_maps[1]=128
+input(1) → DoubleConv (gcr) → f_maps[0]=64 ────── concat ─────→ f_maps[1]=128 → DoubleConv (gcr) → f_maps[0]=64 → DoubleConv (gcr) → output(5)
+                                   │                                  ↑
+                                MaxPool                           Upsampling
+                                   ↓                                  │
+                               f_maps[0]=64 → DoubleConv (gcr) → f_maps[1]=128
+```
+
+```mermaid
+flowchart LR
+    A[input - len 1] --> B[DoubleConv - gcr]
+    B --> C[f_maps_0 = 64]
+    C --> D[concat]
+    D --> E[f_maps_1 = 128]
+    E --> F[DoubleConv - gcr]
+    F --> G[f_maps_0 = 64]
+    G --> H[DoubleConv - gcr]
+    H --> I[output - len 5]
+
+    C -->|MaxPool| J[f_maps_0 = 64]
+    J --> K[DoubleConv - gcr]
+    K --> L[f_maps_1 = 128]
+
+    L -->|Upsampling| D
 ```
 
 ### Key Configuration Parameters

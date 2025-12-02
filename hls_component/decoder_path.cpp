@@ -543,8 +543,6 @@ void DecoderDoubleConv3D(
     float input[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-#pragma HLS dataflow
-
     float gn1_out[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 #pragma HLS stream variable=gn1_out depth=10 type=fifo
 

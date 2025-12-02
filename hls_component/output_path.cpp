@@ -356,8 +356,6 @@ void OutputGroupNorm3D_1(
     float beta[F_MAP_0],
     float output_data[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-#pragma HLS dataflow
-
     // Calculate group parameters
     int CHANNELS_PER_GROUP = F_MAP_0 / NUM_GROUPS;
     float N = (float)(INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH * CHANNELS_PER_GROUP);
@@ -444,8 +442,6 @@ void OutputGroupNorm3D_2(
     float beta[F_MAP_0],
     float output_data[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-#pragma HLS dataflow
-
     // Calculate group parameters
     int CHANNELS_PER_GROUP = F_MAP_0 / NUM_GROUPS;
     float N = (float)(INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH * CHANNELS_PER_GROUP);
@@ -536,8 +532,6 @@ void OutputDoubleConv3D(
     float kernel2[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
     float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-#pragma HLS dataflow
-
     // Intermediate buffers for pipeline
     float gn1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 #pragma HLS stream variable=gn1_out depth=10 type=fifo

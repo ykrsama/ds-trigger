@@ -442,8 +442,6 @@ void InputDoubleConv3D(
 #pragma HLS interface bram port=output
 #pragma HLS bind_storage variable=output type=ram_t2p impl=bram
 
-#pragma HLS dataflow
-
     float gn1_out[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 #pragma HLS stream variable=gn1_out depth=10 type=fifo
 

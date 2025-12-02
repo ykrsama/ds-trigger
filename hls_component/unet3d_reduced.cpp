@@ -47,49 +47,147 @@ void UNet3DReduced(
 ) {
     #pragma HLS interface s_axilite port=return
     #pragma HLS interface bram port=input
+    #pragma HLS bind_storage variable=input type=ram_t2p impl=bram
     #pragma HLS interface bram port=input_conv1_weight
+    #pragma HLS bind_storage variable=input_conv1_weight type=ram_t2p impl=bram
     #pragma HLS interface bram port=input_conv2_weight
+    #pragma HLS bind_storage variable=input_conv2_weight type=ram_t2p impl=bram
     #pragma HLS interface bram port=encoder_conv1_weight
+    #pragma HLS bind_storage variable=encoder_conv1_weight type=ram_t2p impl=bram
     #pragma HLS interface bram port=encoder_conv2_weight
+    #pragma HLS bind_storage variable=encoder_conv2_weight type=ram_t2p impl=bram
     #pragma HLS interface bram port=decoder_conv1_weight
+    #pragma HLS bind_storage variable=decoder_conv1_weight type=ram_t2p impl=bram
     #pragma HLS interface bram port=decoder_conv2_weight
+    #pragma HLS bind_storage variable=decoder_conv2_weight type=ram_t2p impl=bram
     #pragma HLS interface bram port=output_conv1_weight
+    #pragma HLS bind_storage variable=output_conv1_weight type=ram_t2p impl=bram
     #pragma HLS interface bram port=output_conv2_weight
+    #pragma HLS bind_storage variable=output_conv2_weight type=ram_t2p impl=bram
     #pragma HLS interface bram port=final_conv_weight
+    #pragma HLS bind_storage variable=final_conv_weight type=ram_t2p impl=bram
     #pragma HLS interface bram port=final_conv_bias
+    #pragma HLS bind_storage variable=final_conv_bias type=ram_t2p impl=bram
+    #pragma HLS interface bram port=input_conv1_gamma
+    #pragma HLS bind_storage variable=input_conv1_gamma type=ram_t2p impl=bram
+    #pragma HLS interface bram port=input_conv1_beta
+    #pragma HLS bind_storage variable=input_conv1_beta type=ram_t2p impl=bram
+    #pragma HLS interface bram port=input_conv2_gamma
+    #pragma HLS bind_storage variable=input_conv2_gamma type=ram_t2p impl=bram
+    #pragma HLS interface bram port=input_conv2_beta
+    #pragma HLS bind_storage variable=input_conv2_beta type=ram_t2p impl=bram
+    #pragma HLS interface bram port=encoder_conv1_gamma
+    #pragma HLS bind_storage variable=encoder_conv1_gamma type=ram_t2p impl=bram
+    #pragma HLS interface bram port=encoder_conv1_beta
+    #pragma HLS bind_storage variable=encoder_conv1_beta type=ram_t2p impl=bram
+    #pragma HLS interface bram port=encoder_conv2_gamma
+    #pragma HLS bind_storage variable=encoder_conv2_gamma type=ram_t2p impl=bram
+    #pragma HLS interface bram port=encoder_conv2_beta
+    #pragma HLS bind_storage variable=encoder_conv2_beta type=ram_t2p impl=bram
+    #pragma HLS interface bram port=decoder_conv1_gamma
+    #pragma HLS bind_storage variable=decoder_conv1_gamma type=ram_t2p impl=bram
+    #pragma HLS interface bram port=decoder_conv1_beta
+    #pragma HLS bind_storage variable=decoder_conv1_beta type=ram_t2p impl=bram
+    #pragma HLS interface bram port=decoder_conv2_gamma
+    #pragma HLS bind_storage variable=decoder_conv2_gamma type=ram_t2p impl=bram
+    #pragma HLS interface bram port=decoder_conv2_beta
+    #pragma HLS bind_storage variable=decoder_conv2_beta type=ram_t2p impl=bram
+    #pragma HLS interface bram port=output_conv1_gamma
+    #pragma HLS bind_storage variable=output_conv1_gamma type=ram_t2p impl=bram
+    #pragma HLS interface bram port=output_conv1_beta
+    #pragma HLS bind_storage variable=output_conv1_beta type=ram_t2p impl=bram
+    #pragma HLS interface bram port=output_conv2_gamma
+    #pragma HLS bind_storage variable=output_conv2_gamma type=ram_t2p impl=bram
+    #pragma HLS interface bram port=output_conv2_beta
+    #pragma HLS bind_storage variable=output_conv2_beta type=ram_t2p impl=bram
     #pragma HLS interface bram port=output
+    #pragma HLS bind_storage variable=output type=ram_t2p impl=bram
 
     #pragma HLS dataflow
+
+    // Array partitioning for weight arrays to enable parallel access
+    #pragma HLS array_partition variable=input_conv1_weight cyclic factor=3 dim=3
+    #pragma HLS array_partition variable=input_conv1_weight cyclic factor=3 dim=4
+    #pragma HLS array_partition variable=input_conv1_weight cyclic factor=3 dim=5
+    #pragma HLS array_partition variable=input_conv2_weight cyclic factor=3 dim=3
+    #pragma HLS array_partition variable=input_conv2_weight cyclic factor=3 dim=4
+    #pragma HLS array_partition variable=input_conv2_weight cyclic factor=3 dim=5
+    #pragma HLS array_partition variable=encoder_conv1_weight cyclic factor=3 dim=3
+    #pragma HLS array_partition variable=encoder_conv1_weight cyclic factor=3 dim=4
+    #pragma HLS array_partition variable=encoder_conv1_weight cyclic factor=3 dim=5
+    #pragma HLS array_partition variable=encoder_conv2_weight cyclic factor=3 dim=3
+    #pragma HLS array_partition variable=encoder_conv2_weight cyclic factor=3 dim=4
+    #pragma HLS array_partition variable=encoder_conv2_weight cyclic factor=3 dim=5
+    #pragma HLS array_partition variable=decoder_conv1_weight cyclic factor=3 dim=3
+    #pragma HLS array_partition variable=decoder_conv1_weight cyclic factor=3 dim=4
+    #pragma HLS array_partition variable=decoder_conv1_weight cyclic factor=3 dim=5
+    #pragma HLS array_partition variable=decoder_conv2_weight cyclic factor=3 dim=3
+    #pragma HLS array_partition variable=decoder_conv2_weight cyclic factor=3 dim=4
+    #pragma HLS array_partition variable=decoder_conv2_weight cyclic factor=3 dim=5
+    #pragma HLS array_partition variable=output_conv1_weight cyclic factor=3 dim=3
+    #pragma HLS array_partition variable=output_conv1_weight cyclic factor=3 dim=4
+    #pragma HLS array_partition variable=output_conv1_weight cyclic factor=3 dim=5
+    #pragma HLS array_partition variable=output_conv2_weight cyclic factor=3 dim=3
+    #pragma HLS array_partition variable=output_conv2_weight cyclic factor=3 dim=4
+    #pragma HLS array_partition variable=output_conv2_weight cyclic factor=3 dim=5
+    #pragma HLS array_partition variable=final_conv_weight complete dim=0
+    #pragma HLS array_partition variable=final_conv_bias complete
+
+    // Array partitioning for normalization parameters
+    #pragma HLS array_partition variable=input_conv1_gamma complete
+    #pragma HLS array_partition variable=input_conv1_beta complete
+    #pragma HLS array_partition variable=input_conv2_gamma complete
+    #pragma HLS array_partition variable=input_conv2_beta complete
+    #pragma HLS array_partition variable=encoder_conv1_gamma complete
+    #pragma HLS array_partition variable=encoder_conv1_beta complete
+    #pragma HLS array_partition variable=encoder_conv2_gamma complete
+    #pragma HLS array_partition variable=encoder_conv2_beta complete
+    #pragma HLS array_partition variable=decoder_conv1_gamma complete
+    #pragma HLS array_partition variable=decoder_conv1_beta complete
+    #pragma HLS array_partition variable=decoder_conv2_gamma complete
+    #pragma HLS array_partition variable=decoder_conv2_beta complete
+    #pragma HLS array_partition variable=output_conv1_gamma complete
+    #pragma HLS array_partition variable=output_conv1_beta complete
+    #pragma HLS array_partition variable=output_conv2_gamma complete
+    #pragma HLS array_partition variable=output_conv2_beta complete
 
     // Intermediate buffers for dataflow
 
     // Input path buffers
     float input_conv_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=input_conv_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=input_conv_out type=ram_2p impl=uram
 
     // Encoder path buffers
     float encoder_pool_out[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
     #pragma HLS stream variable=encoder_pool_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=encoder_pool_out type=ram_2p impl=uram
 
     float encoder_conv_out[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
     #pragma HLS stream variable=encoder_conv_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=encoder_conv_out type=ram_2p impl=uram
 
     // Decoder path buffers
     float decoder_upsample_out[BATCH_SIZE][F_MAP_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=decoder_upsample_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=decoder_upsample_out type=ram_2p impl=uram
 
     float concat_out[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=concat_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=concat_out type=ram_2p impl=uram
 
     float decoder_conv_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=decoder_conv_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=decoder_conv_out type=ram_2p impl=uram
 
     // Output path buffers
     float output_conv_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=output_conv_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=output_conv_out type=ram_2p impl=uram
 
     float final_conv_out[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=final_conv_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=final_conv_out type=ram_2p impl=uram
 
     // UNet forward pass
     InputDoubleConv3D(input, input_conv1_weight, input_conv1_gamma, input_conv1_beta,

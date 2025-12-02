@@ -55,7 +55,7 @@ using namespace std;
 #define UPSAMPLE_OUTPUT_WIDTH (POOL_OUTPUT_WIDTH * 2)
 
 #define CONCAT_CHANNELS (F_MAP_0 + F_MAP_1)
-#define FMAP_h (F_MAP_0 / 2)  // Half of F_MAP_0 for input conv block
+#define F_MAP_h (F_MAP_0 / 2)  // Half of F_MAP_0 for input conv block
 
 // Function declarations for individual blocks
 

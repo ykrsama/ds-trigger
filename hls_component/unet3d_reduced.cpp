@@ -10,85 +10,260 @@ void InputConv3D(
 ) {
     #pragma HLS dataflow
 
-    // Intermediate buffer for first convolution output
-    float conv1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=conv1_out depth=10 type=fifo
-    #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
+    #pragma HLS array_partition variable=kernel1 cyclic factor=INPUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=5
 
-    // First convolution: INPUT_CHANNELS -> F_MAP_0
+    #pragma HLS array_partition variable=kernel2 cyclic factor=F_MAP_h dim=2
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=5
+
+    // Padded dimensions
+    int PADDED_DEPTH = INPUT_DEPTH + 2 * CONV_PADDING;
+    int PADDED_HEIGHT = INPUT_HEIGHT + 2 * CONV_PADDING;
+    int PADDED_WIDTH = INPUT_WIDTH + 2 * CONV_PADDING;
+
+    // Padded input
+    float padded_input[BATCH_SIZE][INPUT_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS stream variable=padded_input depth=10 type=fifo
+    #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
+
+    // Padding operation
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
+                    for (int in_ch = 0; in_ch < INPUT_CHANNELS; in_ch++) {
+                        float pad_value = 0.0f;
+                        int orig_depth = depth - CONV_PADDING;
+                        int orig_height = height - CONV_PADDING;
+                        int orig_width = width - CONV_PADDING;
 
-                        float accum = 0.0f;
-
-                        // Convolution computation with padding
-                        for (int in_ch = 0; in_ch < INPUT_CHANNELS; in_ch++) {
-                            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                        int in_depth = depth + kd - CONV_PADDING;
-                                        int in_height = height + kh - CONV_PADDING;
-                                        int in_width = width + kw - CONV_PADDING;
-
-                                        float input_val = 0.0f;
-                                        if (in_depth >= 0 && in_depth < INPUT_DEPTH &&
-                                            in_height >= 0 && in_height < INPUT_HEIGHT &&
-                                            in_width >= 0 && in_width < INPUT_WIDTH) {
-                                            input_val = input[batch][in_ch][in_depth][in_height][in_width];
-                                        }
-
-                                        accum += input_val * kernel1[out_ch][in_ch][kd][kh][kw];
-                                    }
-                                }
-                            }
+                        if (orig_depth >= 0 && orig_depth < INPUT_DEPTH &&
+                            orig_height >= 0 && orig_height < INPUT_HEIGHT &&
+                            orig_width >= 0 && orig_width < INPUT_WIDTH) {
+                            pad_value = input[batch][in_ch][orig_depth][orig_height][orig_width];
                         }
-
-                        // ReLU activation
-                        conv1_out[batch][out_ch][depth][height][width] = (accum > 0.0f) ? accum : 0.0f;
+                        padded_input[batch][in_ch][depth][height][width] = pad_value;
                     }
                 }
             }
         }
     }
 
-    // Second convolution: F_MAP_0 -> F_MAP_0
+    // First convolution output
+    float conv1_out[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=conv1_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
+
+    // Buffer definitions for first convolution
+    float cube_buffer1[BATCH_SIZE][INPUT_CHANNELS][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer1 type=ram_2p impl=lutram
+
+    float line_buffer1[BATCH_SIZE][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer1 type=ram_2p impl=lutram
+
+    float window_buffer1[BATCH_SIZE][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=INPUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer1 type=ram_2p impl=lutram
+
+    // First convolution: INPUT_CHANNELS -> F_MAP_h
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
 
-                        float accum = 0.0f;
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < INPUT_CHANNELS; in_ch++) {
+                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            cube_buffer1[batch][in_ch][kd][height][width] =
+                                cube_buffer1[batch][in_ch][kd + 1][height][width];
+                        }
+                        cube_buffer1[batch][in_ch][CONV_KERNEL - 1][height][width] =
+                            padded_input[batch][in_ch][depth][height][width];
+                    }
 
-                        // Convolution computation with padding
-                        for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                    if (depth >= CONV_KERNEL - 1) {
+                        // Update line buffer
+                        for (int in_ch = 0; in_ch < INPUT_CHANNELS; in_ch++) {
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                        int in_depth = depth + kd - CONV_PADDING;
-                                        int in_height = height + kh - CONV_PADDING;
-                                        int in_width = width + kw - CONV_PADDING;
-
-                                        float input_val = 0.0f;
-                                        if (in_depth >= 0 && in_depth < INPUT_DEPTH &&
-                                            in_height >= 0 && in_height < INPUT_HEIGHT &&
-                                            in_width >= 0 && in_width < INPUT_WIDTH) {
-                                            input_val = conv1_out[batch][in_ch][in_depth][in_height][in_width];
-                                        }
-
-                                        accum += input_val * kernel2[out_ch][in_ch][kd][kh][kw];
-                                    }
+                                for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                                    line_buffer1[batch][in_ch][kd][kh][width] =
+                                        line_buffer1[batch][in_ch][kd][kh + 1][width];
                                 }
+                                line_buffer1[batch][in_ch][kd][CONV_KERNEL - 1][width] =
+                                    cube_buffer1[batch][in_ch][kd][height][width];
                             }
                         }
 
-                        // ReLU activation
-                        output[batch][out_ch][depth][height][width] = (accum > 0.0f) ? accum : 0.0f;
+                        if (height >= CONV_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < INPUT_CHANNELS; in_ch++) {
+                                for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                        for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                            window_buffer1[batch][in_ch][kd][kh][kw] =
+                                                window_buffer1[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer1[batch][in_ch][kd][kh][CONV_KERNEL - 1] =
+                                            line_buffer1[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Convolution computation
+                            if (width >= CONV_KERNEL - 1 &&
+                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
+                                (height - CONV_KERNEL + 1) % 1 == 0 &&
+                                (width - CONV_KERNEL + 1) % 1 == 0) {
+
+                                float accum[F_MAP_h];
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+
+                                for (int out_ch = 0; out_ch < F_MAP_h; out_ch++) {
+                                    #pragma HLS pipeline II=1
+                                    accum[out_ch] = 0.0f;
+
+                                    for (int in_ch = 0; in_ch < INPUT_CHANNELS; in_ch++) {
+                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                    float window_val = window_buffer1[batch][in_ch][kd][kh][kw];
+                                                    float kernel_val = kernel1[out_ch][in_ch][kd][kh][kw];
+                                                    accum[out_ch] += window_val * kernel_val;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - CONV_KERNEL) / 1 + 1;
+                                    int out_height = (height - CONV_KERNEL) / 1 + 1;
+                                    int out_width = (width - CONV_KERNEL) / 1 + 1;
+
+                                    // ReLU activation
+                                    float output_value = accum[out_ch];
+                                    bool is_positive = output_value > 0.0f;
+                                    float relu_output = is_positive ? output_value : 0.0f;
+                                    conv1_out[batch][out_ch][out_depth][out_height][out_width] = relu_output;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Second convolution: F_MAP_h -> F_MAP_0 (similar structure but different dimensions)
+    // Buffer definitions for second convolution
+    float cube_buffer2[BATCH_SIZE][F_MAP_h][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer2 type=ram_2p impl=lutram
+
+    float line_buffer2[BATCH_SIZE][F_MAP_h][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer2 type=ram_2p impl=lutram
+
+    float window_buffer2[BATCH_SIZE][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=F_MAP_h dim=2
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer2 type=ram_2p impl=lutram
+
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
+
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < F_MAP_h; in_ch++) {
+                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            cube_buffer2[batch][in_ch][kd][height][width] =
+                                cube_buffer2[batch][in_ch][kd + 1][height][width];
+                        }
+                        // Use padded conv1_out (need to add padding)
+                        float pad_value = 0.0f;
+                        int orig_depth = depth - CONV_PADDING;
+                        int orig_height = height - CONV_PADDING;
+                        int orig_width = width - CONV_PADDING;
+
+                        if (orig_depth >= 0 && orig_depth < INPUT_DEPTH &&
+                            orig_height >= 0 && orig_height < INPUT_HEIGHT &&
+                            orig_width >= 0 && orig_width < INPUT_WIDTH) {
+                            pad_value = conv1_out[batch][in_ch][orig_depth][orig_height][orig_width];
+                        }
+                        cube_buffer2[batch][in_ch][CONV_KERNEL - 1][height][width] = pad_value;
+                    }
+
+                    if (depth >= CONV_KERNEL - 1) {
+                        // Update line buffer
+                        for (int in_ch = 0; in_ch < F_MAP_h; in_ch++) {
+                            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                                    line_buffer2[batch][in_ch][kd][kh][width] =
+                                        line_buffer2[batch][in_ch][kd][kh + 1][width];
+                                }
+                                line_buffer2[batch][in_ch][kd][CONV_KERNEL - 1][width] =
+                                    cube_buffer2[batch][in_ch][kd][height][width];
+                            }
+                        }
+
+                        if (height >= CONV_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < F_MAP_h; in_ch++) {
+                                for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                        for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                            window_buffer2[batch][in_ch][kd][kh][kw] =
+                                                window_buffer2[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer2[batch][in_ch][kd][kh][CONV_KERNEL - 1] =
+                                            line_buffer2[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Convolution computation
+                            if (width >= CONV_KERNEL - 1 &&
+                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
+                                (height - CONV_KERNEL + 1) % 1 == 0 &&
+                                (width - CONV_KERNEL + 1) % 1 == 0) {
+
+                                float accum[F_MAP_0];
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+
+                                for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
+                                    #pragma HLS pipeline II=1
+                                    accum[out_ch] = 0.0f;
+
+                                    for (int in_ch = 0; in_ch < F_MAP_h; in_ch++) {
+                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                    float window_val = window_buffer2[batch][in_ch][kd][kh][kw];
+                                                    float kernel_val = kernel2[out_ch][in_ch][kd][kh][kw];
+                                                    accum[out_ch] += window_val * kernel_val;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - CONV_KERNEL) / 1 + 1;
+                                    int out_height = (height - CONV_KERNEL) / 1 + 1;
+                                    int out_width = (width - CONV_KERNEL) / 1 + 1;
+
+                                    // ReLU activation
+                                    float output_value = accum[out_ch];
+                                    bool is_positive = output_value > 0.0f;
+                                    float relu_output = is_positive ? output_value : 0.0f;
+                                    output[batch][out_ch][out_depth][out_height][out_width] = relu_output;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -103,35 +278,95 @@ void EncoderMaxPool3D(
 ) {
     #pragma HLS dataflow
 
+    // Buffer definitions
+    float cube_buffer[BATCH_SIZE][F_MAP_0][POOL_KERNEL][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
+
+    float line_buffer[BATCH_SIZE][F_MAP_0][POOL_KERNEL][POOL_KERNEL][INPUT_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
+
+    float window_buffer[BATCH_SIZE][F_MAP_0][POOL_KERNEL][POOL_KERNEL][POOL_KERNEL];
+    #pragma HLS array_partition variable=window_buffer cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
+
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int ch = 0; ch < F_MAP_0; ch++) {
-            for (int out_d = 0; out_d < POOL_OUTPUT_DEPTH; out_d++) {
-                for (int out_h = 0; out_h < POOL_OUTPUT_HEIGHT; out_h++) {
-                    for (int out_w = 0; out_w < POOL_OUTPUT_WIDTH; out_w++) {
-                        #pragma HLS pipeline II=1
+        for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+            for (int height = 0; height < INPUT_HEIGHT; height++) {
+                for (int width = 0; width < INPUT_WIDTH; width++) {
 
-                        float max_val = -1e9f;
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                        for (int kd = 0; kd < POOL_KERNEL - 1; kd++) {
+                            cube_buffer[batch][in_ch][kd][height][width] =
+                                cube_buffer[batch][in_ch][kd + 1][height][width];
+                        }
+                        cube_buffer[batch][in_ch][POOL_KERNEL - 1][height][width] =
+                            input[batch][in_ch][depth][height][width];
+                    }
 
-                        for (int kd = 0; kd < POOL_KERNEL; kd++) {
-                            for (int kh = 0; kh < POOL_KERNEL; kh++) {
-                                for (int kw = 0; kw < POOL_KERNEL; kw++) {
-                                    int in_depth = out_d * POOL_STRIDE + kd;
-                                    int in_height = out_h * POOL_STRIDE + kh;
-                                    int in_width = out_w * POOL_STRIDE + kw;
-
-                                    if (in_depth < INPUT_DEPTH &&
-                                        in_height < INPUT_HEIGHT &&
-                                        in_width < INPUT_WIDTH) {
-                                        float val = input[batch][ch][in_depth][in_height][in_width];
-                                        if (val > max_val) {
-                                            max_val = val;
-                                        }
-                                    }
+                    if (depth >= POOL_KERNEL - 1) {
+                        // Update line buffer
+                        for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                            for (int kd = 0; kd < POOL_KERNEL; kd++) {
+                                for (int kh = 0; kh < POOL_KERNEL - 1; kh++) {
+                                    line_buffer[batch][in_ch][kd][kh][width] =
+                                        line_buffer[batch][in_ch][kd][kh + 1][width];
                                 }
+                                line_buffer[batch][in_ch][kd][POOL_KERNEL - 1][width] =
+                                    cube_buffer[batch][in_ch][kd][height][width];
                             }
                         }
 
-                        output[batch][ch][out_d][out_h][out_w] = max_val;
+                        if (height >= POOL_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                for (int kd = 0; kd < POOL_KERNEL; kd++) {
+                                    for (int kh = 0; kh < POOL_KERNEL; kh++) {
+                                        for (int kw = 0; kw < POOL_KERNEL - 1; kw++) {
+                                            window_buffer[batch][in_ch][kd][kh][kw] =
+                                                window_buffer[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer[batch][in_ch][kd][kh][POOL_KERNEL - 1] =
+                                            line_buffer[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Pooling computation
+                            if (width >= POOL_KERNEL - 1 &&
+                                (depth - POOL_KERNEL + 1) % POOL_STRIDE == 0 &&
+                                (height - POOL_KERNEL + 1) % POOL_STRIDE == 0 &&
+                                (width - POOL_KERNEL + 1) % POOL_STRIDE == 0) {
+
+                                float max_vals[F_MAP_0];
+                                #pragma HLS bind_storage variable=max_vals type=ram_2p impl=bram
+
+                                for (int ch = 0; ch < F_MAP_0; ch++) {
+                                    #pragma HLS pipeline II=1
+                                    max_vals[ch] = -1e9f;
+
+                                    for (int kd = 0; kd < POOL_KERNEL; kd++) {
+                                        for (int kh = 0; kh < POOL_KERNEL; kh++) {
+                                            for (int kw = 0; kw < POOL_KERNEL; kw++) {
+                                                float window_val = window_buffer[batch][ch][kd][kh][kw];
+                                                if (window_val > max_vals[ch]) {
+                                                    max_vals[ch] = window_val;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - POOL_KERNEL + 1) / POOL_STRIDE;
+                                    int out_height = (height - POOL_KERNEL + 1) / POOL_STRIDE;
+                                    int out_width = (width - POOL_KERNEL + 1) / POOL_STRIDE;
+
+                                    output[batch][ch][out_depth][out_height][out_width] = max_vals[ch];
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -148,85 +383,260 @@ void EncoderConv3D(
 ) {
     #pragma HLS dataflow
 
-    // Intermediate buffer for first convolution output
-    float conv1_out[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
-    #pragma HLS stream variable=conv1_out depth=10 type=fifo
-    #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
+    #pragma HLS array_partition variable=kernel1 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=5
 
-    // First convolution: F_MAP_0 -> F_MAP_1
+    #pragma HLS array_partition variable=kernel2 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=5
+
+    // Padded dimensions
+    int PADDED_DEPTH = POOL_OUTPUT_DEPTH + 2 * CONV_PADDING;
+    int PADDED_HEIGHT = POOL_OUTPUT_HEIGHT + 2 * CONV_PADDING;
+    int PADDED_WIDTH = POOL_OUTPUT_WIDTH + 2 * CONV_PADDING;
+
+    // Padded input
+    float padded_input[BATCH_SIZE][F_MAP_0][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS stream variable=padded_input depth=10 type=fifo
+    #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
+
+    // Padding operation
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int out_ch = 0; out_ch < F_MAP_1; out_ch++) {
-            for (int depth = 0; depth < POOL_OUTPUT_DEPTH; depth++) {
-                for (int height = 0; height < POOL_OUTPUT_HEIGHT; height++) {
-                    for (int width = 0; width < POOL_OUTPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
+                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                        float pad_value = 0.0f;
+                        int orig_depth = depth - CONV_PADDING;
+                        int orig_height = height - CONV_PADDING;
+                        int orig_width = width - CONV_PADDING;
 
-                        float accum = 0.0f;
-
-                        // Convolution computation with padding
-                        for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
-                            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                        int in_depth = depth + kd - CONV_PADDING;
-                                        int in_height = height + kh - CONV_PADDING;
-                                        int in_width = width + kw - CONV_PADDING;
-
-                                        float input_val = 0.0f;
-                                        if (in_depth >= 0 && in_depth < POOL_OUTPUT_DEPTH &&
-                                            in_height >= 0 && in_height < POOL_OUTPUT_HEIGHT &&
-                                            in_width >= 0 && in_width < POOL_OUTPUT_WIDTH) {
-                                            input_val = input[batch][in_ch][in_depth][in_height][in_width];
-                                        }
-
-                                        accum += input_val * kernel1[out_ch][in_ch][kd][kh][kw];
-                                    }
-                                }
-                            }
+                        if (orig_depth >= 0 && orig_depth < POOL_OUTPUT_DEPTH &&
+                            orig_height >= 0 && orig_height < POOL_OUTPUT_HEIGHT &&
+                            orig_width >= 0 && orig_width < POOL_OUTPUT_WIDTH) {
+                            pad_value = input[batch][in_ch][orig_depth][orig_height][orig_width];
                         }
-
-                        // ReLU activation
-                        conv1_out[batch][out_ch][depth][height][width] = (accum > 0.0f) ? accum : 0.0f;
+                        padded_input[batch][in_ch][depth][height][width] = pad_value;
                     }
                 }
             }
         }
     }
 
-    // Second convolution: F_MAP_1 -> F_MAP_1
+    // First convolution output
+    float conv1_out[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
+    #pragma HLS stream variable=conv1_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
+
+    // Buffer definitions for first convolution
+    float cube_buffer1[BATCH_SIZE][F_MAP_0][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer1 type=ram_2p impl=lutram
+
+    float line_buffer1[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer1 type=ram_2p impl=lutram
+
+    float window_buffer1[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer1 type=ram_2p impl=lutram
+
+    // First convolution: F_MAP_0 -> F_MAP_0
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int out_ch = 0; out_ch < F_MAP_1; out_ch++) {
-            for (int depth = 0; depth < POOL_OUTPUT_DEPTH; depth++) {
-                for (int height = 0; height < POOL_OUTPUT_HEIGHT; height++) {
-                    for (int width = 0; width < POOL_OUTPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
 
-                        float accum = 0.0f;
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            cube_buffer1[batch][in_ch][kd][height][width] =
+                                cube_buffer1[batch][in_ch][kd + 1][height][width];
+                        }
+                        cube_buffer1[batch][in_ch][CONV_KERNEL - 1][height][width] =
+                            padded_input[batch][in_ch][depth][height][width];
+                    }
 
-                        // Convolution computation with padding
-                        for (int in_ch = 0; in_ch < F_MAP_1; in_ch++) {
+                    if (depth >= CONV_KERNEL - 1) {
+                        // Update line buffer
+                        for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                        int in_depth = depth + kd - CONV_PADDING;
-                                        int in_height = height + kh - CONV_PADDING;
-                                        int in_width = width + kw - CONV_PADDING;
-
-                                        float input_val = 0.0f;
-                                        if (in_depth >= 0 && in_depth < POOL_OUTPUT_DEPTH &&
-                                            in_height >= 0 && in_height < POOL_OUTPUT_HEIGHT &&
-                                            in_width >= 0 && in_width < POOL_OUTPUT_WIDTH) {
-                                            input_val = conv1_out[batch][in_ch][in_depth][in_height][in_width];
-                                        }
-
-                                        accum += input_val * kernel2[out_ch][in_ch][kd][kh][kw];
-                                    }
+                                for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                                    line_buffer1[batch][in_ch][kd][kh][width] =
+                                        line_buffer1[batch][in_ch][kd][kh + 1][width];
                                 }
+                                line_buffer1[batch][in_ch][kd][CONV_KERNEL - 1][width] =
+                                    cube_buffer1[batch][in_ch][kd][height][width];
                             }
                         }
 
-                        // ReLU activation
-                        output[batch][out_ch][depth][height][width] = (accum > 0.0f) ? accum : 0.0f;
+                        if (height >= CONV_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                        for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                            window_buffer1[batch][in_ch][kd][kh][kw] =
+                                                window_buffer1[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer1[batch][in_ch][kd][kh][CONV_KERNEL - 1] =
+                                            line_buffer1[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Convolution computation
+                            if (width >= CONV_KERNEL - 1 &&
+                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
+                                (height - CONV_KERNEL + 1) % 1 == 0 &&
+                                (width - CONV_KERNEL + 1) % 1 == 0) {
+
+                                float accum[F_MAP_0];
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+
+                                for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
+                                    #pragma HLS pipeline II=1
+                                    accum[out_ch] = 0.0f;
+
+                                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                    float window_val = window_buffer1[batch][in_ch][kd][kh][kw];
+                                                    float kernel_val = kernel1[out_ch][in_ch][kd][kh][kw];
+                                                    accum[out_ch] += window_val * kernel_val;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - CONV_KERNEL) / 1 + 1;
+                                    int out_height = (height - CONV_KERNEL) / 1 + 1;
+                                    int out_width = (width - CONV_KERNEL) / 1 + 1;
+
+                                    // ReLU activation
+                                    float output_value = accum[out_ch];
+                                    bool is_positive = output_value > 0.0f;
+                                    float relu_output = is_positive ? output_value : 0.0f;
+                                    conv1_out[batch][out_ch][out_depth][out_height][out_width] = relu_output;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Second convolution: F_MAP_0 -> F_MAP_1
+    // Buffer definitions for second convolution
+    float cube_buffer2[BATCH_SIZE][F_MAP_0][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer2 type=ram_2p impl=lutram
+
+    float line_buffer2[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer2 type=ram_2p impl=lutram
+
+    float window_buffer2[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer2 type=ram_2p impl=lutram
+
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
+
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            cube_buffer2[batch][in_ch][kd][height][width] =
+                                cube_buffer2[batch][in_ch][kd + 1][height][width];
+                        }
+                        // Use padded conv1_out
+                        float pad_value = 0.0f;
+                        int orig_depth = depth - CONV_PADDING;
+                        int orig_height = height - CONV_PADDING;
+                        int orig_width = width - CONV_PADDING;
+
+                        if (orig_depth >= 0 && orig_depth < POOL_OUTPUT_DEPTH &&
+                            orig_height >= 0 && orig_height < POOL_OUTPUT_HEIGHT &&
+                            orig_width >= 0 && orig_width < POOL_OUTPUT_WIDTH) {
+                            pad_value = conv1_out[batch][in_ch][orig_depth][orig_height][orig_width];
+                        }
+                        cube_buffer2[batch][in_ch][CONV_KERNEL - 1][height][width] = pad_value;
+                    }
+
+                    if (depth >= CONV_KERNEL - 1) {
+                        // Update line buffer
+                        for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                            for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                                    line_buffer2[batch][in_ch][kd][kh][width] =
+                                        line_buffer2[batch][in_ch][kd][kh + 1][width];
+                                }
+                                line_buffer2[batch][in_ch][kd][CONV_KERNEL - 1][width] =
+                                    cube_buffer2[batch][in_ch][kd][height][width];
+                            }
+                        }
+
+                        if (height >= CONV_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                        for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                            window_buffer2[batch][in_ch][kd][kh][kw] =
+                                                window_buffer2[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer2[batch][in_ch][kd][kh][CONV_KERNEL - 1] =
+                                            line_buffer2[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Convolution computation
+                            if (width >= CONV_KERNEL - 1 &&
+                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
+                                (height - CONV_KERNEL + 1) % 1 == 0 &&
+                                (width - CONV_KERNEL + 1) % 1 == 0) {
+
+                                float accum[F_MAP_1];
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+
+                                for (int out_ch = 0; out_ch < F_MAP_1; out_ch++) {
+                                    #pragma HLS pipeline II=1
+                                    accum[out_ch] = 0.0f;
+
+                                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                    float window_val = window_buffer2[batch][in_ch][kd][kh][kw];
+                                                    float kernel_val = kernel2[out_ch][in_ch][kd][kh][kw];
+                                                    accum[out_ch] += window_val * kernel_val;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - CONV_KERNEL) / 1 + 1;
+                                    int out_height = (height - CONV_KERNEL) / 1 + 1;
+                                    int out_width = (width - CONV_KERNEL) / 1 + 1;
+
+                                    // ReLU activation
+                                    float output_value = accum[out_ch];
+                                    bool is_positive = output_value > 0.0f;
+                                    float relu_output = is_positive ? output_value : 0.0f;
+                                    output[batch][out_ch][out_depth][out_height][out_width] = relu_output;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -307,45 +717,149 @@ void DecoderConv3D(
 ) {
     #pragma HLS dataflow
 
-    // Intermediate buffer for first convolution output
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONCAT_CHANNELS dim=2
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=5
+
+    #pragma HLS array_partition variable=kernel2 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=5
+
+    // Padded dimensions
+    int PADDED_DEPTH = INPUT_DEPTH + 2 * CONV_PADDING;
+    int PADDED_HEIGHT = INPUT_HEIGHT + 2 * CONV_PADDING;
+    int PADDED_WIDTH = INPUT_WIDTH + 2 * CONV_PADDING;
+
+    // Padded input
+    float padded_input[BATCH_SIZE][CONCAT_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS stream variable=padded_input depth=10 type=fifo
+    #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
+
+    // Padding operation
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
+                    for (int in_ch = 0; in_ch < CONCAT_CHANNELS; in_ch++) {
+                        float pad_value = 0.0f;
+                        int orig_depth = depth - CONV_PADDING;
+                        int orig_height = height - CONV_PADDING;
+                        int orig_width = width - CONV_PADDING;
+
+                        if (orig_depth >= 0 && orig_depth < INPUT_DEPTH &&
+                            orig_height >= 0 && orig_height < INPUT_HEIGHT &&
+                            orig_width >= 0 && orig_width < INPUT_WIDTH) {
+                            pad_value = input[batch][in_ch][orig_depth][orig_height][orig_width];
+                        }
+                        padded_input[batch][in_ch][depth][height][width] = pad_value;
+                    }
+                }
+            }
+        }
+    }
+
+    // First convolution output
     float conv1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=conv1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
 
+    // Buffer definitions for first convolution
+    float cube_buffer1[BATCH_SIZE][CONCAT_CHANNELS][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer1 type=ram_2p impl=lutram
+
+    float line_buffer1[BATCH_SIZE][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer1 type=ram_2p impl=lutram
+
+    float window_buffer1[BATCH_SIZE][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONCAT_CHANNELS dim=2
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer1 type=ram_2p impl=lutram
+
     // First convolution: CONCAT_CHANNELS -> F_MAP_0
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
 
-                        float accum = 0.0f;
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < CONCAT_CHANNELS; in_ch++) {
+                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            cube_buffer1[batch][in_ch][kd][height][width] =
+                                cube_buffer1[batch][in_ch][kd + 1][height][width];
+                        }
+                        cube_buffer1[batch][in_ch][CONV_KERNEL - 1][height][width] =
+                            padded_input[batch][in_ch][depth][height][width];
+                    }
 
-                        // Convolution computation with padding
+                    if (depth >= CONV_KERNEL - 1) {
+                        // Update line buffer
                         for (int in_ch = 0; in_ch < CONCAT_CHANNELS; in_ch++) {
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                        int in_depth = depth + kd - CONV_PADDING;
-                                        int in_height = height + kh - CONV_PADDING;
-                                        int in_width = width + kw - CONV_PADDING;
-
-                                        float input_val = 0.0f;
-                                        if (in_depth >= 0 && in_depth < INPUT_DEPTH &&
-                                            in_height >= 0 && in_height < INPUT_HEIGHT &&
-                                            in_width >= 0 && in_width < INPUT_WIDTH) {
-                                            input_val = input[batch][in_ch][in_depth][in_height][in_width];
-                                        }
-
-                                        accum += input_val * kernel1[out_ch][in_ch][kd][kh][kw];
-                                    }
+                                for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                                    line_buffer1[batch][in_ch][kd][kh][width] =
+                                        line_buffer1[batch][in_ch][kd][kh + 1][width];
                                 }
+                                line_buffer1[batch][in_ch][kd][CONV_KERNEL - 1][width] =
+                                    cube_buffer1[batch][in_ch][kd][height][width];
                             }
                         }
 
-                        // ReLU activation
-                        conv1_out[batch][out_ch][depth][height][width] = (accum > 0.0f) ? accum : 0.0f;
+                        if (height >= CONV_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < CONCAT_CHANNELS; in_ch++) {
+                                for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                        for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                            window_buffer1[batch][in_ch][kd][kh][kw] =
+                                                window_buffer1[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer1[batch][in_ch][kd][kh][CONV_KERNEL - 1] =
+                                            line_buffer1[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Convolution computation
+                            if (width >= CONV_KERNEL - 1 &&
+                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
+                                (height - CONV_KERNEL + 1) % 1 == 0 &&
+                                (width - CONV_KERNEL + 1) % 1 == 0) {
+
+                                float accum[F_MAP_0];
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+
+                                for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
+                                    #pragma HLS pipeline II=1
+                                    accum[out_ch] = 0.0f;
+
+                                    for (int in_ch = 0; in_ch < CONCAT_CHANNELS; in_ch++) {
+                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                    float window_val = window_buffer1[batch][in_ch][kd][kh][kw];
+                                                    float kernel_val = kernel1[out_ch][in_ch][kd][kh][kw];
+                                                    accum[out_ch] += window_val * kernel_val;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - CONV_KERNEL) / 1 + 1;
+                                    int out_height = (height - CONV_KERNEL) / 1 + 1;
+                                    int out_width = (width - CONV_KERNEL) / 1 + 1;
+
+                                    // ReLU activation
+                                    float output_value = accum[out_ch];
+                                    bool is_positive = output_value > 0.0f;
+                                    float relu_output = is_positive ? output_value : 0.0f;
+                                    conv1_out[batch][out_ch][out_depth][out_height][out_width] = relu_output;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -353,39 +867,110 @@ void DecoderConv3D(
     }
 
     // Second convolution: F_MAP_0 -> F_MAP_0
+    // Buffer definitions for second convolution
+    float cube_buffer2[BATCH_SIZE][F_MAP_0][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer2 type=ram_2p impl=lutram
+
+    float line_buffer2[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer2 type=ram_2p impl=lutram
+
+    float window_buffer2[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer2 type=ram_2p impl=lutram
+
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
 
-                        float accum = 0.0f;
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            cube_buffer2[batch][in_ch][kd][height][width] =
+                                cube_buffer2[batch][in_ch][kd + 1][height][width];
+                        }
+                        // Use padded conv1_out
+                        float pad_value = 0.0f;
+                        int orig_depth = depth - CONV_PADDING;
+                        int orig_height = height - CONV_PADDING;
+                        int orig_width = width - CONV_PADDING;
 
-                        // Convolution computation with padding
+                        if (orig_depth >= 0 && orig_depth < INPUT_DEPTH &&
+                            orig_height >= 0 && orig_height < INPUT_HEIGHT &&
+                            orig_width >= 0 && orig_width < INPUT_WIDTH) {
+                            pad_value = conv1_out[batch][in_ch][orig_depth][orig_height][orig_width];
+                        }
+                        cube_buffer2[batch][in_ch][CONV_KERNEL - 1][height][width] = pad_value;
+                    }
+
+                    if (depth >= CONV_KERNEL - 1) {
+                        // Update line buffer
                         for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                        int in_depth = depth + kd - CONV_PADDING;
-                                        int in_height = height + kh - CONV_PADDING;
-                                        int in_width = width + kw - CONV_PADDING;
-
-                                        float input_val = 0.0f;
-                                        if (in_depth >= 0 && in_depth < INPUT_DEPTH &&
-                                            in_height >= 0 && in_height < INPUT_HEIGHT &&
-                                            in_width >= 0 && in_width < INPUT_WIDTH) {
-                                            input_val = conv1_out[batch][in_ch][in_depth][in_height][in_width];
-                                        }
-
-                                        accum += input_val * kernel2[out_ch][in_ch][kd][kh][kw];
-                                    }
+                                for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                                    line_buffer2[batch][in_ch][kd][kh][width] =
+                                        line_buffer2[batch][in_ch][kd][kh + 1][width];
                                 }
+                                line_buffer2[batch][in_ch][kd][CONV_KERNEL - 1][width] =
+                                    cube_buffer2[batch][in_ch][kd][height][width];
                             }
                         }
 
-                        // ReLU activation
-                        output[batch][out_ch][depth][height][width] = (accum > 0.0f) ? accum : 0.0f;
+                        if (height >= CONV_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                        for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                            window_buffer2[batch][in_ch][kd][kh][kw] =
+                                                window_buffer2[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer2[batch][in_ch][kd][kh][CONV_KERNEL - 1] =
+                                            line_buffer2[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Convolution computation
+                            if (width >= CONV_KERNEL - 1 &&
+                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
+                                (height - CONV_KERNEL + 1) % 1 == 0 &&
+                                (width - CONV_KERNEL + 1) % 1 == 0) {
+
+                                float accum[F_MAP_0];
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+
+                                for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
+                                    #pragma HLS pipeline II=1
+                                    accum[out_ch] = 0.0f;
+
+                                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                    float window_val = window_buffer2[batch][in_ch][kd][kh][kw];
+                                                    float kernel_val = kernel2[out_ch][in_ch][kd][kh][kw];
+                                                    accum[out_ch] += window_val * kernel_val;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - CONV_KERNEL) / 1 + 1;
+                                    int out_height = (height - CONV_KERNEL) / 1 + 1;
+                                    int out_width = (width - CONV_KERNEL) / 1 + 1;
+
+                                    // ReLU activation
+                                    float output_value = accum[out_ch];
+                                    bool is_positive = output_value > 0.0f;
+                                    float relu_output = is_positive ? output_value : 0.0f;
+                                    output[batch][out_ch][out_depth][out_height][out_width] = relu_output;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -402,45 +987,149 @@ void OutputConv3D(
 ) {
     #pragma HLS dataflow
 
-    // Intermediate buffer for first convolution output
+    #pragma HLS array_partition variable=kernel1 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=5
+
+    #pragma HLS array_partition variable=kernel2 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel2 cyclic factor=CONV_KERNEL dim=5
+
+    // Padded dimensions
+    int PADDED_DEPTH = INPUT_DEPTH + 2 * CONV_PADDING;
+    int PADDED_HEIGHT = INPUT_HEIGHT + 2 * CONV_PADDING;
+    int PADDED_WIDTH = INPUT_WIDTH + 2 * CONV_PADDING;
+
+    // Padded input
+    float padded_input[BATCH_SIZE][F_MAP_0][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS stream variable=padded_input depth=10 type=fifo
+    #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
+
+    // Padding operation
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
+                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                        float pad_value = 0.0f;
+                        int orig_depth = depth - CONV_PADDING;
+                        int orig_height = height - CONV_PADDING;
+                        int orig_width = width - CONV_PADDING;
+
+                        if (orig_depth >= 0 && orig_depth < INPUT_DEPTH &&
+                            orig_height >= 0 && orig_height < INPUT_HEIGHT &&
+                            orig_width >= 0 && orig_width < INPUT_WIDTH) {
+                            pad_value = input[batch][in_ch][orig_depth][orig_height][orig_width];
+                        }
+                        padded_input[batch][in_ch][depth][height][width] = pad_value;
+                    }
+                }
+            }
+        }
+    }
+
+    // First convolution output
     float conv1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=conv1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
 
+    // Buffer definitions for first convolution
+    float cube_buffer1[BATCH_SIZE][F_MAP_0][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer1 type=ram_2p impl=lutram
+
+    float line_buffer1[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer1 type=ram_2p impl=lutram
+
+    float window_buffer1[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer1 cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer1 type=ram_2p impl=lutram
+
     // First convolution: F_MAP_0 -> F_MAP_0
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
 
-                        float accum = 0.0f;
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            cube_buffer1[batch][in_ch][kd][height][width] =
+                                cube_buffer1[batch][in_ch][kd + 1][height][width];
+                        }
+                        cube_buffer1[batch][in_ch][CONV_KERNEL - 1][height][width] =
+                            padded_input[batch][in_ch][depth][height][width];
+                    }
 
-                        // Convolution computation with padding
+                    if (depth >= CONV_KERNEL - 1) {
+                        // Update line buffer
                         for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                        int in_depth = depth + kd - CONV_PADDING;
-                                        int in_height = height + kh - CONV_PADDING;
-                                        int in_width = width + kw - CONV_PADDING;
-
-                                        float input_val = 0.0f;
-                                        if (in_depth >= 0 && in_depth < INPUT_DEPTH &&
-                                            in_height >= 0 && in_height < INPUT_HEIGHT &&
-                                            in_width >= 0 && in_width < INPUT_WIDTH) {
-                                            input_val = input[batch][in_ch][in_depth][in_height][in_width];
-                                        }
-
-                                        accum += input_val * kernel1[out_ch][in_ch][kd][kh][kw];
-                                    }
+                                for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                                    line_buffer1[batch][in_ch][kd][kh][width] =
+                                        line_buffer1[batch][in_ch][kd][kh + 1][width];
                                 }
+                                line_buffer1[batch][in_ch][kd][CONV_KERNEL - 1][width] =
+                                    cube_buffer1[batch][in_ch][kd][height][width];
                             }
                         }
 
-                        // ReLU activation
-                        conv1_out[batch][out_ch][depth][height][width] = (accum > 0.0f) ? accum : 0.0f;
+                        if (height >= CONV_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                        for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                            window_buffer1[batch][in_ch][kd][kh][kw] =
+                                                window_buffer1[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer1[batch][in_ch][kd][kh][CONV_KERNEL - 1] =
+                                            line_buffer1[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Convolution computation
+                            if (width >= CONV_KERNEL - 1 &&
+                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
+                                (height - CONV_KERNEL + 1) % 1 == 0 &&
+                                (width - CONV_KERNEL + 1) % 1 == 0) {
+
+                                float accum[F_MAP_0];
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+
+                                for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
+                                    #pragma HLS pipeline II=1
+                                    accum[out_ch] = 0.0f;
+
+                                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                    float window_val = window_buffer1[batch][in_ch][kd][kh][kw];
+                                                    float kernel_val = kernel1[out_ch][in_ch][kd][kh][kw];
+                                                    accum[out_ch] += window_val * kernel_val;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - CONV_KERNEL) / 1 + 1;
+                                    int out_height = (height - CONV_KERNEL) / 1 + 1;
+                                    int out_width = (width - CONV_KERNEL) / 1 + 1;
+
+                                    // ReLU activation
+                                    float output_value = accum[out_ch];
+                                    bool is_positive = output_value > 0.0f;
+                                    float relu_output = is_positive ? output_value : 0.0f;
+                                    conv1_out[batch][out_ch][out_depth][out_height][out_width] = relu_output;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -448,39 +1137,110 @@ void OutputConv3D(
     }
 
     // Second convolution: F_MAP_0 -> F_MAP_0
+    // Buffer definitions for second convolution
+    float cube_buffer2[BATCH_SIZE][F_MAP_0][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer2 type=ram_2p impl=lutram
+
+    float line_buffer2[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer2 type=ram_2p impl=lutram
+
+    float window_buffer2[BATCH_SIZE][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer2 cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer2 type=ram_2p impl=lutram
+
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
 
-                        float accum = 0.0f;
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            cube_buffer2[batch][in_ch][kd][height][width] =
+                                cube_buffer2[batch][in_ch][kd + 1][height][width];
+                        }
+                        // Use padded conv1_out
+                        float pad_value = 0.0f;
+                        int orig_depth = depth - CONV_PADDING;
+                        int orig_height = height - CONV_PADDING;
+                        int orig_width = width - CONV_PADDING;
 
-                        // Convolution computation with padding
+                        if (orig_depth >= 0 && orig_depth < INPUT_DEPTH &&
+                            orig_height >= 0 && orig_height < INPUT_HEIGHT &&
+                            orig_width >= 0 && orig_width < INPUT_WIDTH) {
+                            pad_value = conv1_out[batch][in_ch][orig_depth][orig_height][orig_width];
+                        }
+                        cube_buffer2[batch][in_ch][CONV_KERNEL - 1][height][width] = pad_value;
+                    }
+
+                    if (depth >= CONV_KERNEL - 1) {
+                        // Update line buffer
                         for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                        int in_depth = depth + kd - CONV_PADDING;
-                                        int in_height = height + kh - CONV_PADDING;
-                                        int in_width = width + kw - CONV_PADDING;
-
-                                        float input_val = 0.0f;
-                                        if (in_depth >= 0 && in_depth < INPUT_DEPTH &&
-                                            in_height >= 0 && in_height < INPUT_HEIGHT &&
-                                            in_width >= 0 && in_width < INPUT_WIDTH) {
-                                            input_val = conv1_out[batch][in_ch][in_depth][in_height][in_width];
-                                        }
-
-                                        accum += input_val * kernel2[out_ch][in_ch][kd][kh][kw];
-                                    }
+                                for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                                    line_buffer2[batch][in_ch][kd][kh][width] =
+                                        line_buffer2[batch][in_ch][kd][kh + 1][width];
                                 }
+                                line_buffer2[batch][in_ch][kd][CONV_KERNEL - 1][width] =
+                                    cube_buffer2[batch][in_ch][kd][height][width];
                             }
                         }
 
-                        // ReLU activation
-                        output[batch][out_ch][depth][height][width] = (accum > 0.0f) ? accum : 0.0f;
+                        if (height >= CONV_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                        for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                            window_buffer2[batch][in_ch][kd][kh][kw] =
+                                                window_buffer2[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer2[batch][in_ch][kd][kh][CONV_KERNEL - 1] =
+                                            line_buffer2[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Convolution computation
+                            if (width >= CONV_KERNEL - 1 &&
+                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
+                                (height - CONV_KERNEL + 1) % 1 == 0 &&
+                                (width - CONV_KERNEL + 1) % 1 == 0) {
+
+                                float accum[F_MAP_0];
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+
+                                for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
+                                    #pragma HLS pipeline II=1
+                                    accum[out_ch] = 0.0f;
+
+                                    for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
+                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                    float window_val = window_buffer2[batch][in_ch][kd][kh][kw];
+                                                    float kernel_val = kernel2[out_ch][in_ch][kd][kh][kw];
+                                                    accum[out_ch] += window_val * kernel_val;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - CONV_KERNEL) / 1 + 1;
+                                    int out_height = (height - CONV_KERNEL) / 1 + 1;
+                                    int out_width = (width - CONV_KERNEL) / 1 + 1;
+
+                                    // ReLU activation
+                                    float output_value = accum[out_ch];
+                                    bool is_positive = output_value > 0.0f;
+                                    float relu_output = is_positive ? output_value : 0.0f;
+                                    output[batch][out_ch][out_depth][out_height][out_width] = relu_output;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -497,21 +1257,27 @@ void FinalConv1x1(
 ) {
     #pragma HLS dataflow
 
-    for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int out_ch = 0; out_ch < OUTPUT_CHANNELS; out_ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+    #pragma HLS array_partition variable=kernel cyclic factor=F_MAP_0 dim=2
+    #pragma HLS array_partition variable=bias complete dim=1
 
-                        float accum = bias[out_ch];
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+            for (int height = 0; height < INPUT_HEIGHT; height++) {
+                for (int width = 0; width < INPUT_WIDTH; width++) {
+                    #pragma HLS pipeline II=1
+
+                    float accum[OUTPUT_CHANNELS];
+                    #pragma HLS array_partition variable=accum complete dim=1
+
+                    for (int out_ch = 0; out_ch < OUTPUT_CHANNELS; out_ch++) {
+                        accum[out_ch] = bias[out_ch];
 
                         for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
-                            accum += input[batch][in_ch][depth][height][width] *
-                                    kernel[out_ch][in_ch][0][0][0];
+                            accum[out_ch] += input[batch][in_ch][depth][height][width] *
+                                           kernel[out_ch][in_ch][0][0][0];
                         }
 
-                        output[batch][out_ch][depth][height][width] = accum;
+                        output[batch][out_ch][depth][height][width] = accum[out_ch];
                     }
                 }
             }

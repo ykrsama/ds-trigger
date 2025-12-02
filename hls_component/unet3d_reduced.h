@@ -11,6 +11,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
+#include "unet_weights.h"
 
 using namespace std;
 
@@ -22,10 +23,10 @@ using namespace std;
 #define F_MAP_1 128
 
 // Input dimensions (configurable based on dataset)
-#define INPUT_DEPTH 32
-#define INPUT_HEIGHT 32
-#define INPUT_WIDTH 32
-#define OUTPUT_CHANNELS 2  // Segmentation classes
+#define INPUT_DEPTH 43
+#define INPUT_HEIGHT 43
+#define INPUT_WIDTH 11
+#define OUTPUT_CHANNELS 5
 
 // Convolution parameters
 #define CONV_KERNEL 3
@@ -124,22 +125,6 @@ void Sigmoid3D(
 void UNet3DReduced(
     // Input
     float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-
-    // Weights for all layers
-    float input_conv1_weight[F_MAP_0][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    float input_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-
-    float encoder_conv1_weight[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    float encoder_conv2_weight[F_MAP_1][F_MAP_1][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-
-    float decoder_conv1_weight[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    float decoder_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-
-    float output_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    float output_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-
-    float final_conv_weight[OUTPUT_CHANNELS][F_MAP_0][1][1][1],
-
     // Output
     float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );

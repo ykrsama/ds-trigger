@@ -491,6 +491,7 @@ void OutputConv3D(
 // Final 1x1 convolution: F_MAP_0 -> OUTPUT_CHANNELS (64 -> 2)
 void FinalConv1x1(
     float kernel[OUTPUT_CHANNELS][F_MAP_0][1][1][1],
+    float bias[OUTPUT_CHANNELS],
     float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
@@ -503,7 +504,7 @@ void FinalConv1x1(
                     for (int width = 0; width < INPUT_WIDTH; width++) {
                         #pragma HLS pipeline II=1
 
-                        float accum = 0.0f;
+                        float accum = bias[out_ch];
 
                         for (int in_ch = 0; in_ch < F_MAP_0; in_ch++) {
                             accum += input[batch][in_ch][depth][height][width] *
@@ -571,6 +572,7 @@ void UNet3DReduced(
     float output_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
 
     float final_conv_weight[OUTPUT_CHANNELS][F_MAP_0][1][1][1],
+    float final_conv_bias[OUTPUT_CHANNELS],
 
     // Output
     float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
@@ -586,6 +588,7 @@ void UNet3DReduced(
     #pragma HLS interface bram port=output_conv1_weight
     #pragma HLS interface bram port=output_conv2_weight
     #pragma HLS interface bram port=final_conv_weight
+    #pragma HLS interface bram port=final_conv_bias
     #pragma HLS interface bram port=output
 
     #pragma HLS dataflow
@@ -623,6 +626,6 @@ void UNet3DReduced(
     ConcatenateTensors(input_conv_out, decoder_upsample_out, concat_out);
     DecoderConv3D(decoder_conv1_weight, decoder_conv2_weight, concat_out, decoder_conv_out);
     OutputConv3D(output_conv1_weight, output_conv2_weight, decoder_conv_out, output_conv_out);
-    FinalConv1x1(final_conv_weight, output_conv_out, final_conv_out);
+    FinalConv1x1(final_conv_weight, final_conv_bias, output_conv_out, final_conv_out);
     Sigmoid3D(final_conv_out, output);
 }

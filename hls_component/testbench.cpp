@@ -23,21 +23,6 @@ int main() {
     // Input tensor
     static float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 
-    // Weight tensors
-    static float input_conv1_weight[F_MAP_0][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-    static float input_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-
-    static float encoder_conv1_weight[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-    static float encoder_conv2_weight[F_MAP_1][F_MAP_1][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-
-    static float decoder_conv1_weight[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-    static float decoder_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-
-    static float output_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-    static float output_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-
-    static float final_conv_weight[OUTPUT_CHANNELS][F_MAP_0][1][1][1];
-
     // Output tensor
     static float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 
@@ -61,135 +46,6 @@ int main() {
         }
     }
 
-    // Initialize weights with random values (Xavier/Glorot initialization)
-    cout << "Initializing weights with Xavier initialization..." << endl;
-
-    // Input conv weights
-    float xavier_std_input1 = sqrt(2.0f / (INPUT_CHANNELS + F_MAP_0));
-    for (int oc = 0; oc < F_MAP_0; oc++) {
-        for (int ic = 0; ic < INPUT_CHANNELS; ic++) {
-            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                        normal_distribution<float> xavier_dist(0.0f, xavier_std_input1);
-                        input_conv1_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
-                    }
-                }
-            }
-        }
-    }
-
-    float xavier_std_input2 = sqrt(2.0f / (F_MAP_0 + F_MAP_0));
-    for (int oc = 0; oc < F_MAP_0; oc++) {
-        for (int ic = 0; ic < F_MAP_0; ic++) {
-            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                        normal_distribution<float> xavier_dist(0.0f, xavier_std_input2);
-                        input_conv2_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
-                    }
-                }
-            }
-        }
-    }
-
-    // Encoder conv weights
-    float xavier_std_enc1 = sqrt(2.0f / (F_MAP_0 + F_MAP_1));
-    for (int oc = 0; oc < F_MAP_1; oc++) {
-        for (int ic = 0; ic < F_MAP_0; ic++) {
-            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                        normal_distribution<float> xavier_dist(0.0f, xavier_std_enc1);
-                        encoder_conv1_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
-                    }
-                }
-            }
-        }
-    }
-
-    float xavier_std_enc2 = sqrt(2.0f / (F_MAP_1 + F_MAP_1));
-    for (int oc = 0; oc < F_MAP_1; oc++) {
-        for (int ic = 0; ic < F_MAP_1; ic++) {
-            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                        normal_distribution<float> xavier_dist(0.0f, xavier_std_enc2);
-                        encoder_conv2_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
-                    }
-                }
-            }
-        }
-    }
-
-    // Decoder conv weights
-    float xavier_std_dec1 = sqrt(2.0f / (CONCAT_CHANNELS + F_MAP_0));
-    for (int oc = 0; oc < F_MAP_0; oc++) {
-        for (int ic = 0; ic < CONCAT_CHANNELS; ic++) {
-            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                        normal_distribution<float> xavier_dist(0.0f, xavier_std_dec1);
-                        decoder_conv1_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
-                    }
-                }
-            }
-        }
-    }
-
-    float xavier_std_dec2 = sqrt(2.0f / (F_MAP_0 + F_MAP_0));
-    for (int oc = 0; oc < F_MAP_0; oc++) {
-        for (int ic = 0; ic < F_MAP_0; ic++) {
-            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                        normal_distribution<float> xavier_dist(0.0f, xavier_std_dec2);
-                        decoder_conv2_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
-                    }
-                }
-            }
-        }
-    }
-
-    // Output conv weights
-    float xavier_std_out1 = sqrt(2.0f / (F_MAP_0 + F_MAP_0));
-    for (int oc = 0; oc < F_MAP_0; oc++) {
-        for (int ic = 0; ic < F_MAP_0; ic++) {
-            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                        normal_distribution<float> xavier_dist(0.0f, xavier_std_out1);
-                        output_conv1_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
-                    }
-                }
-            }
-        }
-    }
-
-    float xavier_std_out2 = sqrt(2.0f / (F_MAP_0 + F_MAP_0));
-    for (int oc = 0; oc < F_MAP_0; oc++) {
-        for (int ic = 0; ic < F_MAP_0; ic++) {
-            for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                        normal_distribution<float> xavier_dist(0.0f, xavier_std_out2);
-                        output_conv2_weight[oc][ic][kd][kh][kw] = xavier_dist(gen);
-                    }
-                }
-            }
-        }
-    }
-
-    // Final conv weights
-    float xavier_std_final = sqrt(2.0f / (F_MAP_0 + OUTPUT_CHANNELS));
-    for (int oc = 0; oc < OUTPUT_CHANNELS; oc++) {
-        for (int ic = 0; ic < F_MAP_0; ic++) {
-            normal_distribution<float> xavier_dist(0.0f, xavier_std_final);
-            final_conv_weight[oc][ic][0][0][0] = xavier_dist(gen);
-        }
-    }
-
-    cout << "Weight initialization complete." << endl;
 
     // Save input data to file for verification
     cout << "Saving input data to 'input_data.txt'..." << endl;
@@ -214,11 +70,6 @@ int main() {
 
     UNet3DReduced(
         input,
-        input_conv1_weight, input_conv2_weight,
-        encoder_conv1_weight, encoder_conv2_weight,
-        decoder_conv1_weight, decoder_conv2_weight,
-        output_conv1_weight, output_conv2_weight,
-        final_conv_weight,
         output
     );
 

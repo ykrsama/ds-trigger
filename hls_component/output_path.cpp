@@ -304,7 +304,7 @@ void Sigmoid3D(
         1.0000f
     };
 #pragma HLS array_partition variable=sigmoid_lut complete dim=1
-#pragma HLS bind_storage variable=sigmoid_lut type=rom impl=lutram
+#pragma HLS bind_storage variable=sigmoid_lut type=ram_2p impl=lutram
 
     const int total_elements = BATCH_SIZE * OUTPUT_CHANNELS * INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
 

@@ -57,6 +57,10 @@ using namespace std;
 #define CONCAT_CHANNELS (F_MAP_0 + F_MAP_1)
 #define F_MAP_h (F_MAP_0 / 2)  // Half of F_MAP_0 for input conv block
 
+// GroupNorm parameters
+#define NUM_GROUPS 8
+#define EPSILON 1e-5f
+
 // Function declarations for individual blocks
 
 // Input convolution block: INPUT_CHANNELS -> F_MAP_0

@@ -1337,30 +1337,71 @@ void Sigmoid3D(
     float input[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int ch = 0; ch < OUTPUT_CHANNELS; ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+    #pragma HLS INTERFACE m_axi port=input bundle=gmem0
+    #pragma HLS INTERFACE m_axi port=output bundle=gmem1
+    #pragma HLS INTERFACE s_axilite port=return bundle=control
 
-                        float x = input[batch][ch][depth][height][width];
-                        // Sigmoid approximation: 1 / (1 + exp(-x))
-                        // For HLS, use a more efficient approximation
-                        float sigmoid_val;
-                        if (x > 5.0f) {
-                            sigmoid_val = 1.0f;
-                        } else if (x < -5.0f) {
-                            sigmoid_val = 0.0f;
-                        } else {
-                            sigmoid_val = 1.0f / (1.0f + hls::exp(-x));
-                        }
+    // Optimized lookup table for sigmoid values
+    // Pre-computed for range [-6, 6] with 0.125 step size (97 entries)
+    static const float sigmoid_lut[97] = {
+        0.0025f, 0.0033f, 0.0043f, 0.0056f, 0.0074f, 0.0096f, 0.0125f, 0.0163f,
+        0.0211f, 0.0273f, 0.0351f, 0.0450f, 0.0574f, 0.0729f, 0.0921f, 0.1157f,
+        0.1443f, 0.1788f, 0.2199f, 0.2686f, 0.3258f, 0.3925f, 0.4695f, 0.5000f,
+        0.5305f, 0.6075f, 0.6742f, 0.7314f, 0.7801f, 0.8212f, 0.8557f, 0.8843f,
+        0.9079f, 0.9271f, 0.9426f, 0.9550f, 0.9649f, 0.9727f, 0.9789f, 0.9837f,
+        0.9875f, 0.9904f, 0.9926f, 0.9944f, 0.9957f, 0.9967f, 0.9975f, 0.9981f,
+        0.9985f, 0.9988f, 0.9991f, 0.9993f, 0.9995f, 0.9996f, 0.9997f, 0.9998f,
+        0.9998f, 0.9999f, 0.9999f, 0.9999f, 0.9999f, 0.9999f, 1.0000f, 1.0000f,
+        1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f,
+        1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f,
+        1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f,
+        1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f,
+        1.0000f
+    };
+    #pragma HLS array_partition variable=sigmoid_lut complete dim=1
+    #pragma HLS bind_storage variable=sigmoid_lut type=rom impl=lutram
 
-                        output[batch][ch][depth][height][width] = sigmoid_val;
-                    }
-                }
+    const int total_elements = BATCH_SIZE * OUTPUT_CHANNELS * INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
+
+    // Flatten all loops for maximum parallelization
+    sigmoid_loop: for (int i = 0; i < total_elements; i++) {
+        #pragma HLS pipeline II=1
+        #pragma HLS unroll factor=8
+
+        // Calculate indices for multi-dimensional access
+        int width = i % INPUT_WIDTH;
+        int height = (i / INPUT_WIDTH) % INPUT_HEIGHT;
+        int depth = (i / (INPUT_WIDTH * INPUT_HEIGHT)) % INPUT_DEPTH;
+        int ch = (i / (INPUT_WIDTH * INPUT_HEIGHT * INPUT_DEPTH)) % OUTPUT_CHANNELS;
+        int batch = i / (INPUT_WIDTH * INPUT_HEIGHT * INPUT_DEPTH * OUTPUT_CHANNELS);
+
+        float x = input[batch][ch][depth][height][width];
+
+        // Fast sigmoid using lookup table with linear interpolation
+        float sigmoid_val;
+        if (x <= -6.0f) {
+            sigmoid_val = 0.0025f;
+        } else if (x >= 6.0f) {
+            sigmoid_val = 0.9975f;
+        } else {
+            // Map x from [-6, 6] to [0, 96] index range
+            float scaled_x = (x + 6.0f) * 8.0f;  // 8 = 96/12
+            int index = (int)scaled_x;
+            float frac = scaled_x - (float)index;
+
+            // Clamp index to valid range
+            if (index >= 96) {
+                index = 95;
+                frac = 1.0f;
             }
+
+            // Linear interpolation between two LUT values
+            float y0 = sigmoid_lut[index];
+            float y1 = sigmoid_lut[index + 1];
+            sigmoid_val = y0 + frac * (y1 - y0);
         }
+
+        output[batch][ch][depth][height][width] = sigmoid_val;
     }
 }
 

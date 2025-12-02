@@ -80,6 +80,22 @@ int main() {
         output_conv2_weight,
         final_conv_weight,
         final_conv_bias,
+        input_conv1_gamma,
+        input_conv1_beta,
+        input_conv2_gamma,
+        input_conv2_beta,
+        encoder_conv1_gamma,
+        encoder_conv1_beta,
+        encoder_conv2_gamma,
+        encoder_conv2_beta,
+        decoder_conv1_gamma,
+        decoder_conv1_beta,
+        decoder_conv2_gamma,
+        decoder_conv2_beta,
+        output_conv1_gamma,
+        output_conv1_beta,
+        output_conv2_gamma,
+        output_conv2_beta,
         output
     );
 
@@ -158,8 +174,9 @@ int main() {
 
     // Test input convolution
     static float test_input_conv_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    cout << "Testing InputConv3D..." << endl;
-    InputConv3D(input_conv1_weight, input_conv2_weight, input, test_input_conv_out);
+    cout << "Testing InputDoubleConv3D..." << endl;
+    InputDoubleConv3D(input, input_conv1_weight, input_conv1_gamma, input_conv1_beta,
+                      input_conv2_weight, input_conv2_gamma, input_conv2_beta, test_input_conv_out);
 
     float input_conv_min = 1e9f, input_conv_max = -1e9f;
     for (int b = 0; b < BATCH_SIZE; b++) {
@@ -175,7 +192,7 @@ int main() {
             }
         }
     }
-    cout << "  InputConv3D output range: [" << input_conv_min << ", " << input_conv_max << "]" << endl;
+    cout << "  InputDoubleConv3D output range: [" << input_conv_min << ", " << input_conv_max << "]" << endl;
 
     // Validation checks
     bool test_passed = true;

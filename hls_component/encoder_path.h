@@ -168,10 +168,6 @@ void EncoderConv3D_1(
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
 
-    int PADDED_DEPTH = POOL_OUTPUT_DEPTH + 2 * CONV_PADDING;
-    int PADDED_HEIGHT = POOL_OUTPUT_HEIGHT + 2 * CONV_PADDING;
-    int PADDED_WIDTH = POOL_OUTPUT_WIDTH + 2 * CONV_PADDING;
-
     // Buffer definitions for convolution
     float cube_buffer[BATCH_SIZE][F_MAP_0][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
     #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
@@ -293,10 +289,6 @@ void EncoderConv3D_2(
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
-
-    int PADDED_DEPTH = POOL_OUTPUT_DEPTH + 2 * CONV_PADDING;
-    int PADDED_HEIGHT = POOL_OUTPUT_HEIGHT + 2 * CONV_PADDING;
-    int PADDED_WIDTH = POOL_OUTPUT_WIDTH + 2 * CONV_PADDING;
 
     // Buffer definitions for convolution
     float cube_buffer[BATCH_SIZE][F_MAP_0][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];

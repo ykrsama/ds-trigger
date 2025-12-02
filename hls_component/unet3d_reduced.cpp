@@ -3,8 +3,8 @@
 // Input convolution block: INPUT_CHANNELS -> F_MAP_0 (1 -> 64)
 // Implements two 3x3 convolutions with ReLU activation
 void InputConv3D(
-    float kernel1[F_MAP_0][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    float kernel2[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float kernel1[F_MAP_h][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float kernel2[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
     float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
@@ -141,8 +141,8 @@ void EncoderMaxPool3D(
 
 // Encoder convolution block: F_MAP_0 -> F_MAP_1 (64 -> 128)
 void EncoderConv3D(
-    float kernel1[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    float kernel2[F_MAP_1][F_MAP_1][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float kernel1[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float kernel2[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
     float input[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
 ) {
@@ -559,11 +559,11 @@ void UNet3DReduced(
     float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
 
     // Weights for all layers
-    float input_conv1_weight[F_MAP_0][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    float input_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float input_conv1_weight[F_MAP_h][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float input_conv2_weight[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
 
-    float encoder_conv1_weight[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    float encoder_conv2_weight[F_MAP_1][F_MAP_1][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float encoder_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float encoder_conv2_weight[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
 
     float decoder_conv1_weight[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
     float decoder_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],

@@ -55,6 +55,7 @@ using namespace std;
 #define UPSAMPLE_OUTPUT_WIDTH (POOL_OUTPUT_WIDTH * 2)
 
 #define CONCAT_CHANNELS (F_MAP_0 + F_MAP_1)
+#define FMAP_h (F_MAP_0 / 2)  // Half of F_MAP_0 for input conv block
 
 // Function declarations for individual blocks
 
@@ -105,6 +106,7 @@ void OutputConv3D(
 // Final 1x1 convolution: F_MAP_0 -> OUTPUT_CHANNELS
 void FinalConv1x1(
     float kernel[OUTPUT_CHANNELS][F_MAP_0][1][1][1],
+    float bias[OUTPUT_CHANNELS],
     float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );
@@ -125,6 +127,23 @@ void Sigmoid3D(
 void UNet3DReduced(
     // Input
     float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+
+    // Weights for all layers
+    float input_conv1_weight[F_MAP_h][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float input_conv2_weight[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+
+    float encoder_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float encoder_conv2_weight[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+
+    float decoder_conv1_weight[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float decoder_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+
+    float output_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float output_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+
+    float final_conv_weight[OUTPUT_CHANNELS][F_MAP_0][1][1][1],
+    float final_conv_bias[OUTPUT_CHANNELS],
+
     // Output
     float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );

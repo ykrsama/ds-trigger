@@ -70,6 +70,16 @@ int main() {
 
     UNet3DReduced(
         input,
+        input_conv1_weight,
+        input_conv2_weight,
+        encoder_conv1_weight,
+        encoder_conv2_weight,
+        decoder_conv1_weight,
+        decoder_conv2_weight,
+        output_conv1_weight,
+        output_conv2_weight,
+        final_conv_weight,
+        final_conv_bias,
         output
     );
 

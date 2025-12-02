@@ -11,7 +11,7 @@
 #include <math.h>
 #include <stdint.h>
 #include "unet_weights.h"
-#include "input_pth.h"
+#include "input_path.h"
 #include "encoder_path.h"
 #include "decoder_path.h"
 #include "output_path.h"

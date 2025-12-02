@@ -64,17 +64,8 @@ void UNet3DReduced(
     // Intermediate buffers for dataflow
 
     // Input path buffers
-    float input_conv1_out[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=input_conv1_out depth=10 type=fifo
-
-    float input_conv1_out[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=input_conv1_out depth=10 type=fifo
-
-    float input_conv2_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=input_conv2_out depth=10 type=fifo
-
-    float input_conv2_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=input_conv2_out depth=10 type=fifo
+    float input_conv_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=input_conv_out depth=10 type=fifo
 
     // Encoder path buffers
     float encoder_pool_out[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
@@ -82,12 +73,6 @@ void UNet3DReduced(
 
     float encoder_conv1_out[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
     #pragma HLS stream variable=encoder_conv1_out depth=10 type=fifo
-
-    float encoder_conv1_out[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
-    #pragma HLS stream variable=encoder_conv1_out depth=10 type=fifo
-
-    float encoder_conv2_out[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
-    #pragma HLS stream variable=encoder_conv2_out depth=10 type=fifo
 
     float encoder_conv2_out[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
     #pragma HLS stream variable=encoder_conv2_out depth=10 type=fifo
@@ -102,24 +87,12 @@ void UNet3DReduced(
     float decoder_conv1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=decoder_conv1_out depth=10 type=fifo
 
-    float decoder_conv1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=decoder_conv1_out depth=10 type=fifo
-
-    float decoder_conv2_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=decoder_conv2_out depth=10 type=fifo
-
     float decoder_conv2_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=decoder_conv2_out depth=10 type=fifo
 
     // Output path buffers
     float output_conv1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=output_conv1_out depth=10 type=fifo
-
-    float output_conv1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=output_conv1_out depth=10 type=fifo
-
-    float output_conv2_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=output_conv2_out depth=10 type=fifo
 
     float output_conv2_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=output_conv2_out depth=10 type=fifo
@@ -128,15 +101,15 @@ void UNet3DReduced(
     #pragma HLS stream variable=final_conv_out depth=10 type=fifo
 
     // UNet forward pass
-    InputConv3D_1(input_conv1_weight, input, input_conv1_out);
-    InputConv3D_2(input_conv2_weight, input_conv1_out, input_conv2_out);
+    InputDoubleConv3D(input, input_conv1_weight, input_conv1_gamma, input_conv1_beta,
+                      input_conv2_weight, input_conv2_gamma, input_conv2_beta, input_conv_out);
 
-    EncoderMaxPool3D(input_conv2_out, encoder_pool_out);
+    EncoderMaxPool3D(input_conv_out, encoder_pool_out);
     EncoderConv3D_1(encoder_conv1_weight, encoder_pool_out, encoder_conv1_out);
     EncoderConv3D_2(encoder_conv2_weight, encoder_conv1_out, encoder_conv2_out);
 
     DecoderUpsample3D(encoder_conv2_out, decoder_upsample_out);
-    ConcatenateTensors(input_conv2_out, decoder_upsample_out, concat_out);
+    ConcatenateTensors(input_conv_out, decoder_upsample_out, concat_out);
     DecoderConv3D_1(decoder_conv1_weight, concat_out, decoder_conv1_out);
     DecoderConv3D_2(decoder_conv2_weight, decoder_conv1_out, decoder_conv2_out);
 

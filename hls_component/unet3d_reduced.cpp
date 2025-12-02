@@ -1,4 +1,4 @@
-#include "unet3d_reduced.h"
+#include "include/unet3d_reduced.h"
 
 // Top-level UNet3D function
 void UNet3DReduced(

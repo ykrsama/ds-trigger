@@ -1,4 +1,4 @@
-#include "unet3d_reduced.h"
+#include "include/unet3d_reduced.h"
 #include <iostream>
 #include <fstream>
 #include <random>

@@ -8,6 +8,7 @@ class PyTorchToHLSConverter:
     def __init__(self, checkpoint_dir):
         self.checkpoint_dir = Path(checkpoint_dir)
         self.weights = {}
+        self.weight_shapes = {}  # Store shapes for header generation
         self.load_all_checkpoints()
 
     def load_all_checkpoints(self):
@@ -60,15 +61,19 @@ class PyTorchToHLSConverter:
         return gamma, beta
 
     def format_array_for_cpp(self, array, name, shape_comment=""):
-        """Format numpy array as C++ array initialization."""
+        """Format numpy array as C++ array initialization with proper multi-dimensional syntax."""
         if array is None:
             return f"// {name} not found in checkpoint\n"
 
+        # Store shape information for header generation
+        self.weight_shapes[name] = array.shape
+
         flat_data = array.flatten()
+        shape_str = ''.join(f'[{dim}]' for dim in array.shape)
 
         lines = []
         lines.append(f"// {name} {shape_comment}Shape: {array.shape}")
-        lines.append(f"float {name}[] = {{")
+        lines.append(f"float {name}{shape_str} = {{")
 
         # Format values with 6 decimal places, 8 values per line
         for i in range(0, len(flat_data), 8):
@@ -193,7 +198,7 @@ class PyTorchToHLSConverter:
         print(f"Generated {output_file} with extracted weights")
 
     def generate_weight_header(self, output_file="unet_weights.h"):
-        """Generate C++ header file with weight declarations."""
+        """Generate C++ header file with weight declarations using actual shapes."""
 
         with open(output_file, 'w') as f:
             f.write("#ifndef UNET_WEIGHTS_H\n")
@@ -201,46 +206,60 @@ class PyTorchToHLSConverter:
             f.write("// Auto-generated weight declarations for 3D U-Net\n")
             f.write("// Reduced contraction path architecture\n\n")
 
+            # Helper function to write extern declaration with shape
+            def write_extern_with_shape(var_name, comment=""):
+                if var_name in self.weight_shapes:
+                    shape = self.weight_shapes[var_name]
+                    shape_str = ''.join(f'[{dim}]' for dim in shape)
+                    f.write(f"extern float {var_name}{shape_str};\n")
+                else:
+                    f.write(f"extern float {var_name}[];  // Shape not available\n")
+
             # Input convolution weights (1->64->64)
             f.write("// Input Convolution Block: 1 -> 64 -> 64 channels\n")
-            f.write("extern float input_conv1_weight[];\n")
-            f.write("extern float input_conv1_gamma[];\n")
-            f.write("extern float input_conv1_beta[];\n")
-            f.write("extern float input_conv2_weight[];\n")
-            f.write("extern float input_conv2_gamma[];\n")
-            f.write("extern float input_conv2_beta[];\n\n")
+            write_extern_with_shape("input_conv1_weight")
+            write_extern_with_shape("input_conv1_gamma")
+            write_extern_with_shape("input_conv1_beta")
+            write_extern_with_shape("input_conv2_weight")
+            write_extern_with_shape("input_conv2_gamma")
+            write_extern_with_shape("input_conv2_beta")
+            f.write("\n")
 
             # Encoder convolution weights (64->128->128)
             f.write("// Encoder Convolution Block: 64 -> 128 -> 128 channels\n")
-            f.write("extern float encoder_conv1_weight[];\n")
-            f.write("extern float encoder_conv1_gamma[];\n")
-            f.write("extern float encoder_conv1_beta[];\n")
-            f.write("extern float encoder_conv2_weight[];\n")
-            f.write("extern float encoder_conv2_gamma[];\n")
-            f.write("extern float encoder_conv2_beta[];\n\n")
+            write_extern_with_shape("encoder_conv1_weight")
+            write_extern_with_shape("encoder_conv1_gamma")
+            write_extern_with_shape("encoder_conv1_beta")
+            write_extern_with_shape("encoder_conv2_weight")
+            write_extern_with_shape("encoder_conv2_gamma")
+            write_extern_with_shape("encoder_conv2_beta")
+            f.write("\n")
 
             # Decoder convolution weights (192->64->64)
             f.write("// Decoder Convolution Block: 192 -> 64 -> 64 channels\n")
-            f.write("extern float decoder_conv1_weight[];\n")
-            f.write("extern float decoder_conv1_gamma[];\n")
-            f.write("extern float decoder_conv1_beta[];\n")
-            f.write("extern float decoder_conv2_weight[];\n")
-            f.write("extern float decoder_conv2_gamma[];\n")
-            f.write("extern float decoder_conv2_beta[];\n\n")
+            write_extern_with_shape("decoder_conv1_weight")
+            write_extern_with_shape("decoder_conv1_gamma")
+            write_extern_with_shape("decoder_conv1_beta")
+            write_extern_with_shape("decoder_conv2_weight")
+            write_extern_with_shape("decoder_conv2_gamma")
+            write_extern_with_shape("decoder_conv2_beta")
+            f.write("\n")
 
             # Output convolution weights (64->64->64)
             f.write("// Output Convolution Block: 64 -> 64 -> 64 channels\n")
-            f.write("extern float output_conv1_weight[];\n")
-            f.write("extern float output_conv1_gamma[];\n")
-            f.write("extern float output_conv1_beta[];\n")
-            f.write("extern float output_conv2_weight[];\n")
-            f.write("extern float output_conv2_gamma[];\n")
-            f.write("extern float output_conv2_beta[];\n\n")
+            write_extern_with_shape("output_conv1_weight")
+            write_extern_with_shape("output_conv1_gamma")
+            write_extern_with_shape("output_conv1_beta")
+            write_extern_with_shape("output_conv2_weight")
+            write_extern_with_shape("output_conv2_gamma")
+            write_extern_with_shape("output_conv2_beta")
+            f.write("\n")
 
             # Final convolution weights (64->5)
             f.write("// Final Convolution: 64 -> 5 channels\n")
-            f.write("extern float final_conv_weight[];\n")
-            f.write("extern float final_conv_bias[];\n\n")
+            write_extern_with_shape("final_conv_weight")
+            write_extern_with_shape("final_conv_bias")
+            f.write("\n")
 
             f.write("#endif // UNET_WEIGHTS_H\n")
 
@@ -249,14 +268,18 @@ class PyTorchToHLSConverter:
 def main():
     converter = PyTorchToHLSConverter("./best_modular_blocks")
 
-    # Generate header and data files
-    converter.generate_weight_header()
+    # Generate data files first to populate weight_shapes
     converter.generate_hls_weights()
+    # Then generate header with actual shapes
+    converter.generate_weight_header()
 
     print("Weight conversion completed!")
     print("Files generated:")
     print("  - unet_weights.h (header with declarations)")
     print("  - unet_weights_data.cpp (weight data)")
+    print("\nWeight shapes used:")
+    for name, shape in converter.weight_shapes.items():
+        print(f"  {name}: {shape}")
 
 if __name__ == "__main__":
     main()

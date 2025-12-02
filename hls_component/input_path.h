@@ -307,29 +307,25 @@ void InputConv3D_2(
         float input[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
         float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-#pragma HLS array_partition variable=kernel cyclic factor=F_MAP_h dim=2
-#pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
-#pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
-#pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
-
-    int PADDED_DEPTH = INPUT_DEPTH + 2 * CONV_PADDING;
-    int PADDED_HEIGHT = INPUT_HEIGHT + 2 * CONV_PADDING;
-    int PADDED_WIDTH = INPUT_WIDTH + 2 * CONV_PADDING;
+    #pragma HLS array_partition variable=kernel cyclic factor=F_MAP_h dim=2
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
 
     // Similar implementation as InputConv3D_1 but with F_MAP_h -> F_MAP_0 dimensions
     // Buffer definitions for convolution
     float cube_buffer[BATCH_SIZE][F_MAP_h][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
-#pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
+    #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
 
     float line_buffer[BATCH_SIZE][F_MAP_h][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
-#pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
     float window_buffer[BATCH_SIZE][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-#pragma HLS array_partition variable=window_buffer cyclic factor=F_MAP_h dim=2
-#pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=3
-#pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=4
-#pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=5
-#pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
+    #pragma HLS array_partition variable=window_buffer cyclic factor=F_MAP_h dim=2
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
 
     // Convolution computation with padding
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
@@ -392,10 +388,10 @@ void InputConv3D_2(
                                 (width - CONV_KERNEL + 1) % 1 == 0) {
 
                                 float accum[F_MAP_0];
-#pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
 
                                 for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
-#pragma HLS pipeline II=1
+                                    #pragma HLS pipeline II=1
                                     accum[out_ch] = 0.0f;
 
                                     for (int in_ch = 0; in_ch < F_MAP_h; in_ch++) {
@@ -439,34 +435,34 @@ void InputDoubleConv3D(
         float beta2[F_MAP_h],
         float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-#pragma HLS interface s_axilite port=return
-#pragma HLS interface bram port=input
-#pragma HLS bind_storage variable=input type=ram_t2p impl=bram
-#pragma HLS interface bram port=kernel1
-#pragma HLS bind_storage variable=kernel1 type=ram_t2p impl=bram
-#pragma HLS interface bram port=gamma1
-#pragma HLS bind_storage variable=gamma1 type=ram_t2p impl=bram
-#pragma HLS interface bram port=beta1
-#pragma HLS bind_storage variable=beta1 type=ram_t2p impl=bram
-#pragma HLS interface bram port=kernel2
-#pragma HLS bind_storage variable=kernel2 type=ram_t2p impl=bram
-#pragma HLS interface bram port=gamma2
-#pragma HLS bind_storage variable=gamma2 type=ram_t2p impl=bram
-#pragma HLS interface bram port=beta2
-#pragma HLS bind_storage variable=beta2 type=ram_t2p impl=bram
-#pragma HLS interface bram port=output
-#pragma HLS bind_storage variable=output type=ram_t2p impl=bram
+    #pragma HLS interface s_axilite port=return
+    #pragma HLS interface bram port=input
+    #pragma HLS bind_storage variable=input type=ram_t2p impl=bram
+    #pragma HLS interface bram port=kernel1
+    #pragma HLS bind_storage variable=kernel1 type=ram_t2p impl=bram
+    #pragma HLS interface bram port=gamma1
+    #pragma HLS bind_storage variable=gamma1 type=ram_t2p impl=bram
+    #pragma HLS interface bram port=beta1
+    #pragma HLS bind_storage variable=beta1 type=ram_t2p impl=bram
+    #pragma HLS interface bram port=kernel2
+    #pragma HLS bind_storage variable=kernel2 type=ram_t2p impl=bram
+    #pragma HLS interface bram port=gamma2
+    #pragma HLS bind_storage variable=gamma2 type=ram_t2p impl=bram
+    #pragma HLS interface bram port=beta2
+    #pragma HLS bind_storage variable=beta2 type=ram_t2p impl=bram
+    #pragma HLS interface bram port=output
+    #pragma HLS bind_storage variable=output type=ram_t2p impl=bram
 
-#pragma HLS dataflow
+    #pragma HLS dataflow
 
     float gn1_out[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-#pragma HLS stream variable=gn1_out depth=10 type=fifo
+    #pragma HLS stream variable=gn1_out depth=10 type=fifo
 
     float conv1_out[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-#pragma HLS stream variable=conv1_out depth=10 type=fifo
+    #pragma HLS stream variable=conv1_out depth=10 type=fifo
 
     float gn2_out[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-#pragma HLS stream variable=gn2_out depth=10 type=fifo
+    #pragma HLS stream variable=gn2_out depth=10 type=fifo
 
     InputGroupNorm3D_1(input, gamma1, beta1, gn1_out);
     InputConv3D_1(kernel1, gn1_out, conv1_out);

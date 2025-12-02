@@ -128,32 +128,20 @@ void UNet3DReduced(
     #pragma HLS stream variable=final_conv_out depth=10 type=fifo
 
     // UNet forward pass
-    // Input path: Input → InputConv3D_1 → InputGroupNorm3D_1 → InputConv3D_2 → InputGroupNorm3D_2
     InputConv3D_1(input_conv1_weight, input, input_conv1_out);
-    InputGroupNorm3D_1(input_conv1_out, input_conv1_gamma, input_conv1_beta, input_conv1_out);
     InputConv3D_2(input_conv2_weight, input_conv1_out, input_conv2_out);
-    InputGroupNorm3D_2(input_conv2_out, input_conv2_gamma, input_conv2_beta, input_conv2_out);
 
-    // Encoder path: EncoderMaxPool3D → EncoderConv3D_1 → EncoderGroupNorm3D_1 → EncoderConv3D_2 → EncoderGroupNorm3D_2
     EncoderMaxPool3D(input_conv2_out, encoder_pool_out);
     EncoderConv3D_1(encoder_conv1_weight, encoder_pool_out, encoder_conv1_out);
-    EncoderGroupNorm3D_1(encoder_conv1_out, encoder_conv1_gamma, encoder_conv1_beta, encoder_conv1_out);
     EncoderConv3D_2(encoder_conv2_weight, encoder_conv1_out, encoder_conv2_out);
-    EncoderGroupNorm3D_2(encoder_conv2_out, encoder_conv2_gamma, encoder_conv2_beta, encoder_conv2_out);
 
-    // Decoder path: DecoderUpsample3D → ConcatenateTensors → DecoderConv3D_1 → DecoderGroupNorm3D_1 → DecoderConv3D_2 → DecoderGroupNorm3D_2
     DecoderUpsample3D(encoder_conv2_out, decoder_upsample_out);
     ConcatenateTensors(input_conv2_out, decoder_upsample_out, concat_out);
     DecoderConv3D_1(decoder_conv1_weight, concat_out, decoder_conv1_out);
-    DecoderGroupNorm3D_1(decoder_conv1_out, decoder_conv1_gamma, decoder_conv1_beta, decoder_conv1_out);
     DecoderConv3D_2(decoder_conv2_weight, decoder_conv1_out, decoder_conv2_out);
-    DecoderGroupNorm3D_2(decoder_conv2_out, decoder_conv2_gamma, decoder_conv2_beta, decoder_conv2_out);
 
-    // Output path: OutputConv3D_1 → OutputGroupNorm3D_1 → OutputConv3D_2 → OutputGroupNorm3D_2 → FinalConv1x1 → Sigmoid3D
     OutputConv3D_1(output_conv1_weight, decoder_conv2_out, output_conv1_out);
-    OutputGroupNorm3D_1(output_conv1_out, output_conv1_gamma, output_conv1_beta, output_conv1_out);
     OutputConv3D_2(output_conv2_weight, output_conv1_out, output_conv2_out);
-    OutputGroupNorm3D_2(output_conv2_out, output_conv2_gamma, output_conv2_beta, output_conv2_out);
     FinalConv1x1(final_conv_weight, final_conv_bias, output_conv2_out, final_conv_out);
     Sigmoid3D(final_conv_out, output);
 }

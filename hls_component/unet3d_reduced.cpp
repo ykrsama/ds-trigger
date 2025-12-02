@@ -8,8 +8,6 @@ void InputConv3D(
     float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     #pragma HLS array_partition variable=kernel1 cyclic factor=INPUT_CHANNELS dim=2
     #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=3
     #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=4
@@ -276,8 +274,6 @@ void EncoderMaxPool3D(
     float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     // Buffer definitions
     float cube_buffer[BATCH_SIZE][F_MAP_0][POOL_KERNEL][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
@@ -381,8 +377,6 @@ void EncoderConv3D(
     float input[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     #pragma HLS array_partition variable=kernel1 cyclic factor=F_MAP_0 dim=2
     #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=3
     #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=4
@@ -649,8 +643,6 @@ void DecoderUpsample3D(
     float input[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int ch = 0; ch < F_MAP_1; ch++) {
             for (int out_d = 0; out_d < INPUT_DEPTH; out_d++) {
@@ -683,8 +675,6 @@ void ConcatenateTensors(
     float tensor2[BATCH_SIZE][F_MAP_1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int depth = 0; depth < INPUT_DEPTH; depth++) {
             for (int height = 0; height < INPUT_HEIGHT; height++) {
@@ -715,8 +705,6 @@ void DecoderConv3D(
     float input[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     #pragma HLS array_partition variable=kernel1 cyclic factor=CONCAT_CHANNELS dim=2
     #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=3
     #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=4
@@ -985,8 +973,6 @@ void OutputConv3D(
     float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     #pragma HLS array_partition variable=kernel1 cyclic factor=F_MAP_0 dim=2
     #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=3
     #pragma HLS array_partition variable=kernel1 cyclic factor=CONV_KERNEL dim=4
@@ -1255,8 +1241,6 @@ void FinalConv1x1(
     float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     #pragma HLS array_partition variable=kernel cyclic factor=F_MAP_0 dim=2
     #pragma HLS array_partition variable=bias complete dim=1
 
@@ -1290,8 +1274,6 @@ void Sigmoid3D(
     float input[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    #pragma HLS dataflow
-
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int ch = 0; ch < OUTPUT_CHANNELS; ch++) {
             for (int depth = 0; depth < INPUT_DEPTH; depth++) {

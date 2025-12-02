@@ -81,11 +81,8 @@ void UNet3DReduced(
     float concat_out[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=concat_out depth=10 type=fifo
 
-    float decoder_conv1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=decoder_conv1_out depth=10 type=fifo
-
-    float decoder_conv2_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=decoder_conv2_out depth=10 type=fifo
+    float decoder_double_conv_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=decoder_double_conv_out depth=10 type=fifo
 
     // Output path buffers
     float output_conv1_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
@@ -108,10 +105,11 @@ void UNet3DReduced(
 
     DecoderUpsample3D(encoder_conv_out, decoder_upsample_out);
     ConcatenateTensors(input_conv_out, decoder_upsample_out, concat_out);
-    DecoderConv3D_1(decoder_conv1_weight, concat_out, decoder_conv1_out);
-    DecoderConv3D_2(decoder_conv2_weight, decoder_conv1_out, decoder_conv2_out);
+    DecoderDoubleConv3D(decoder_conv1_weight, decoder_conv1_gamma, decoder_conv1_beta,
+                        decoder_conv2_weight, decoder_conv2_gamma, decoder_conv2_beta,
+                        concat_out, decoder_double_conv_out);
 
-    OutputConv3D_1(output_conv1_weight, decoder_conv2_out, output_conv1_out);
+    OutputConv3D_1(output_conv1_weight, decoder_double_conv_out, output_conv1_out);
     OutputConv3D_2(output_conv2_weight, output_conv1_out, output_conv2_out);
     FinalConv1x1(final_conv_weight, final_conv_bias, output_conv2_out, final_conv_out);
     Sigmoid3D(final_conv_out, output);

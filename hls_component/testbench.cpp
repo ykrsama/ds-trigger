@@ -173,10 +173,12 @@ int main() {
     cout << "\nTesting individual blocks..." << endl;
 
     // Test input convolution
-    static float test_input_conv_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    static float test_input_conv_out_main[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    static float test_input_conv_out_skip[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     cout << "Testing InputDoubleConv3D..." << endl;
     InputDoubleConv3D(input, input_conv1_weight, input_conv1_gamma, input_conv1_beta,
-                      input_conv2_weight, input_conv2_gamma, input_conv2_beta, test_input_conv_out);
+                      input_conv2_weight, input_conv2_gamma, input_conv2_beta,
+                      test_input_conv_out_main, test_input_conv_out_skip);
 
     float input_conv_min = 1e9f, input_conv_max = -1e9f;
     for (int b = 0; b < BATCH_SIZE; b++) {
@@ -184,9 +186,16 @@ int main() {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
-                        float val = test_input_conv_out[b][c][d][h][w];
-                        if (val < input_conv_min) input_conv_min = val;
-                        if (val > input_conv_max) input_conv_max = val;
+                        float val_main = test_input_conv_out_main[b][c][d][h][w];
+                        float val_skip = test_input_conv_out_skip[b][c][d][h][w];
+                        if (val_main < input_conv_min) input_conv_min = val_main;
+                        if (val_main > input_conv_max) input_conv_max = val_main;
+                        // Verify that main and skip outputs are identical
+                        if (abs(val_main - val_skip) > 1e-6f) {
+                            cout << "ERROR: Main and skip outputs differ at [" << b << "][" << c
+                                 << "][" << d << "][" << h << "][" << w << "]: "
+                                 << val_main << " vs " << val_skip << endl;
+                        }
                     }
                 }
             }

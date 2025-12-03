@@ -11,10 +11,7 @@
 #include <math.h>
 #include <stdint.h>
 #include "unet_weights.h"
-#include "input_path.h"
-#include "encoder_path.h"
-#include "decoder_path.h"
-#include "output_path.h"
+#include "model_parameter.h"
 
 // Top-level UNet3D function
 void UNet3DReduced(

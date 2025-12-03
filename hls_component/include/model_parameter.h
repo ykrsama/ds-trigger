@@ -2,9 +2,9 @@
 #define MODEL_PARAMETER_H
 
 // Network configuration constants
-// Default configuration for UNet3DFPGAModular with f_maps=[64, 128]
 #define BATCH_SIZE 1
-#define INPUT_CHANNELS 1
+#define IN_CHANNELS 1
+#define OUT_CHANNELS 5
 #define F_MAP_0 64
 #define F_MAP_1 128
 
@@ -12,7 +12,6 @@
 #define INPUT_DEPTH 43
 #define INPUT_HEIGHT 43
 #define INPUT_WIDTH 11
-#define OUTPUT_CHANNELS 5
 
 // Convolution parameters
 #define CONV_KERNEL 3

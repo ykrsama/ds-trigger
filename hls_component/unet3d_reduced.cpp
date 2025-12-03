@@ -2,17 +2,17 @@
 
 
 // GroupNorm3D template
-template<int T_INPUT_CHANNELS>
-void GroupNorm3D(float input_data[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-                 float gamma[T_INPUT_CHANNELS],
-                 float beta[T_INPUT_CHANNELS],
-                 float output_data[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+template<int T_IN_CHANNELS>
+void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                 float gamma[T_IN_CHANNELS],
+                 float beta[T_IN_CHANNELS],
+                 float output_data[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
     // calculate channel number
-    int CHANNELS_PER_GROUP = T_INPUT_CHANNELS / NUM_GROUPS;
+    int CHANNELS_PER_GROUP = T_IN_CHANNELS / NUM_GROUPS;
     float N = (float) (INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH * CHANNELS_PER_GROUP);
 
     // 1. On chip buffer
-    float gn_buffer[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float gn_buffer[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=uram
 
     // Statistics
@@ -28,7 +28,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INP
     }
 
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int ch = 0; ch < T_INPUT_CHANNELS; ch++) {
+        for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
             for (int depth = 0; depth < INPUT_DEPTH; depth++) {
                 for (int height = 0; height < INPUT_HEIGHT; height++) {
                     for (int width = 0; width < INPUT_WIDTH; width++) {
@@ -67,7 +67,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INP
             for (int height = 0; height < INPUT_HEIGHT; height++) {
                 for (int width = 0; width < INPUT_WIDTH; width++) {
                     #pragma HLS pipeline II=1
-                    for (int ch = 0; ch < INPUT_CHANNELS; ch++) {
+                    for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
                         // channel group id
                         int group_idx = ch / CHANNELS_PER_GROUP;
                         // read from buffer
@@ -92,17 +92,17 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INP
 }
 
 // Conv3D template
-template<int T_INPUT_CHANNELS, int T_OUT_CHANNELS>
-void Conv3d(float kernel[T_OUT_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-            float input[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+template<int T_IN_CHANNELS, int T_OUT_CHANNELS>
+void Conv3d(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+            float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
             float output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
-    #pragma HLS array_partition variable=kernel cyclic factor=T_INPUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=kernel cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
 
     // fill input
-    float padded_input[BATCH_SIZE][T_INPUT_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
+    float padded_input[BATCH_SIZE][T_IN_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
     #pragma HLS stream variable=padded_input depth=10 type=fifo
     #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
@@ -111,7 +111,7 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KER
         for (int depth = 0; depth < PADDED_DEPTH; depth++) {
             for (int height = 0; height < PADDED_HEIGHT; height++) {
                 for (int width = 0; width < PADDED_WIDTH; width++) {
-                    for (int in_ch = 0; in_ch < T_INPUT_CHANNELS; in_ch++) {
+                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                         float pad_value = (float) 0.000000;
                         int orig_depth = depth - CONV_PADDING;
                         int orig_height = height - CONV_PADDING;
@@ -130,14 +130,14 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KER
     }
 
     // Buffer definitions for convolution
-    float cube_buffer[BATCH_SIZE][T_INPUT_CHANNELS][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    float cube_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
     #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
 
-    float line_buffer[BATCH_SIZE][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    float line_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
     #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
-    float window_buffer[BATCH_SIZE][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-    #pragma HLS array_partition variable=window_buffer cyclic factor=T_INPUT_CHANNELS dim=2
+    float window_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=3
     #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=4
     #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=5
@@ -150,7 +150,7 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KER
                 for (int width = 0; width < PADDED_WIDTH; width++) {
 
                     // Update cube buffer
-                    for (int in_ch = 0; in_ch < T_INPUT_CHANNELS; in_ch++) {
+                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                         for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
                             cube_buffer[batch][in_ch][kd][height][width] =
                                 cube_buffer[batch][in_ch][kd + 1][height][width];
@@ -161,7 +161,7 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KER
 
                     if (depth >= CONV_KERNEL - 1) {
                         // Update line buffer
-                        for (int in_ch = 0; in_ch < T_INPUT_CHANNELS; in_ch++) {
+                        for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
                                 for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
                                     line_buffer[batch][in_ch][kd][kh][width] =
@@ -174,7 +174,7 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KER
 
                         if (height >= CONV_KERNEL - 1) {
                             // Update window buffer
-                            for (int in_ch = 0; in_ch < T_INPUT_CHANNELS; in_ch++) {
+                            for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                                 for (int kd = 0; kd < CONV_KERNEL; kd++) {
                                     for (int kh = 0; kh < CONV_KERNEL; kh++) {
                                         for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
@@ -200,7 +200,7 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KER
                                     #pragma HLS pipeline II=1
                                     accum[out_ch] = (float)0.000000;
 
-                                    for (int in_ch = 0; in_ch < T_INPUT_CHANNELS; in_ch++) {
+                                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                                         for (int kd = 0; kd < CONV_KERNEL; kd++) {
                                             for (int kh = 0; kh < CONV_KERNEL; kh++) {
                                                 for (int kw = 0; kw < CONV_KERNEL; kw++) {
@@ -231,17 +231,17 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KER
     }
 }
 
-template<int T_INPUT_CHANNELS, int T_MID_CHANNELS, int T_OUT_CHANNELS>
-void DoubleConv3D(float input[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-                  float kernel1[T_MID_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                  float gamma1[T_INPUT_CHANNELS],
-                  float beta1[T_INPUT_CHANNELS],
+template<int T_IN_CHANNELS, int T_MID_CHANNELS, int T_OUT_CHANNELS>
+void DoubleConv3D(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                  float kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+                  float gamma1[T_IN_CHANNELS],
+                  float beta1[T_IN_CHANNELS],
                   float kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
                   float gamma2[T_MID_CHANNELS],
                   float beta2[T_MID_CHANNELS],
                   float output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
     // buffers
-    float gn1_out[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float gn1_out[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=gn1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
@@ -253,24 +253,24 @@ void DoubleConv3D(float input[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_H
     #pragma HLS stream variable=gn2_out depth=10 type=fifo
     #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
 
-    GroupNorm3D<T_INPUT_CHANNELS>(input, gamma1, beta1, gn1_out);
-    Conv3D<T_INPUT_CHANNELS, T_MID_CHANNELS>(kernel1, gn1_out, conv1_out);
+    GroupNorm3D<T_IN_CHANNELS>(input, gamma1, beta1, gn1_out);
+    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS>(kernel1, gn1_out, conv1_out);
     GroupNorm3D<T_MID_CHANNELS>(conv1_out, gamma2, beta2, gn2_out);
     Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS>(kernel2, gn2_out, output);
 }
 
-template<int T_INPUT_CHANNELS, int T_MID_CHANNELS, int T_OUT_CHANNELS>
-void DoubleConv3D2Head(float input[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-                       float kernel1[T_MID_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                       float gamma1[T_INPUT_CHANNELS],
-                       float beta1[T_INPUT_CHANNELS],
+template<int T_IN_CHANNELS, int T_MID_CHANNELS, int T_OUT_CHANNELS>
+void DoubleConv3D2Head(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                       float kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+                       float gamma1[T_IN_CHANNELS],
+                       float beta1[T_IN_CHANNELS],
                        float kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
                        float gamma2[T_MID_CHANNELS],
                        float beta2[T_MID_CHANNELS],
                        float output1[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
                        float output2[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
     // buffers
-    float gn1_out[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float gn1_out[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=gn1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
@@ -287,8 +287,8 @@ void DoubleConv3D2Head(float input[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][IN
     #pragma HLS stream variable=temp_output depth=10 type=fifo
     #pragma HLS bind_storage variable=temp_output type=ram_t2p impl=bram
 
-    GroupNorm3D<T_INPUT_CHANNELS>(input, gamma1, beta1, gn1_out);
-    Conv3D<T_INPUT_CHANNELS, T_MID_CHANNELS>(kernel1, gn1_out, conv1_out);
+    GroupNorm3D<T_IN_CHANNELS>(input, gamma1, beta1, gn1_out);
+    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS>(kernel1, gn1_out, conv1_out);
     GroupNorm3D<T_MID_CHANNELS>(conv1_out, gamma2, beta2, gn2_out);
     Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS>(kernel2, gn2_out, temp_output);
 
@@ -310,13 +310,224 @@ void DoubleConv3D2Head(float input[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][IN
     }
 }
 
+template<int T_IN_CHANNELS>
+void MaxPool3D(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+               float output[BATCH_SIZE][T_IN_CHANNELS][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]) {
+    // Buffer definitions
+    float cube_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
+
+    float line_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][POOL_KERNEL][INPUT_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
+
+    float window_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][POOL_KERNEL][POOL_KERNEL];
+    #pragma HLS array_partition variable=window_buffer cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
+
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+            for (int height = 0; height < INPUT_HEIGHT; height++) {
+                for (int width = 0; width < INPUT_WIDTH; width++) {
+
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                        for (int kd = 0; kd < POOL_KERNEL - 1; kd++) {
+                            cube_buffer[batch][in_ch][kd][height][width] =
+                                cube_buffer[batch][in_ch][kd + 1][height][width];
+                        }
+                        cube_buffer[batch][in_ch][POOL_KERNEL - 1][height][width] =
+                            input[batch][in_ch][depth][height][width];
+                    }
+
+                    if (depth >= POOL_KERNEL - 1) {
+                        // Update line buffer
+                        for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                            for (int kd = 0; kd < POOL_KERNEL; kd++) {
+                                for (int kh = 0; kh < POOL_KERNEL - 1; kh++) {
+                                    line_buffer[batch][in_ch][kd][kh][width] =
+                                        line_buffer[batch][in_ch][kd][kh + 1][width];
+                                }
+                                line_buffer[batch][in_ch][kd][POOL_KERNEL - 1][width] =
+                                    cube_buffer[batch][in_ch][kd][height][width];
+                            }
+                        }
+
+                        if (height >= POOL_KERNEL - 1) {
+                            // Update window buffer
+                            for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                                for (int kd = 0; kd < POOL_KERNEL; kd++) {
+                                    for (int kh = 0; kh < POOL_KERNEL; kh++) {
+                                        for (int kw = 0; kw < POOL_KERNEL - 1; kw++) {
+                                            window_buffer[batch][in_ch][kd][kh][kw] =
+                                                window_buffer[batch][in_ch][kd][kh][kw + 1];
+                                        }
+                                        window_buffer[batch][in_ch][kd][kh][POOL_KERNEL - 1] =
+                                            line_buffer[batch][in_ch][kd][kh][width];
+                                    }
+                                }
+                            }
+
+                            // Pooling computation
+                            if (width >= POOL_KERNEL - 1 &&
+                                (depth) % POOL_STRIDE == 0 &&
+                                (height) % POOL_STRIDE == 0 &&
+                                (width) % POOL_STRIDE == 0) {
+
+                                float max_vals[T_IN_CHANNELS];
+                                #pragma HLS bind_storage variable=max_vals type=ram_2p impl=bram
+
+                                for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
+                                    #pragma HLS pipeline II=1
+                                    max_vals[ch] = -1e9f;  // FIXME: -FLT_MAX?
+
+                                    for (int kd = 0; kd < POOL_KERNEL; kd++) {
+                                        for (int kh = 0; kh < POOL_KERNEL; kh++) {
+                                            for (int kw = 0; kw < POOL_KERNEL; kw++) {
+                                                float window_val = window_buffer[batch][ch][kd][kh][kw];
+                                                float max_val_temp = max_vals[ch];
+                                                max_vals[ch] = max(max_val_temp, window_val);
+                                            }
+                                        }
+                                    }
+
+                                    int out_depth = (depth - POOL_KERNEL) / POOL_STRIDE + 1;
+                                    int out_height = (height - POOL_KERNEL) / POOL_STRIDE + 1;
+                                    int out_width = (width - POOL_KERNEL) / POOL_STRIDE + 1;
+
+                                    float output_value = max_vals[ch]
+                                    output[batch][ch][out_depth][out_height][out_width] = output_value;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+template<int T_IN_CHANNELS>
+void Upsample3D(float input[BATCH_SIZE][T_IN_CHANNELS][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+                float output[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+    #pragma HLS array_partition variable=input cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=output cyclic factor=T_IN_CHANNELS dim=2
+
+    // Line buffer for streaming data access pattern
+    float line_buffer[T_IN_CHANNELS][POOL_OUTPUT_WIDTH];
+    #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=1
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
+
+    // Main processing loops
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int src_d = 0; src_d < POOL_OUTPUT_DEPTH; src_d++) {
+            for (int src_h = 0; src_h < POOL_OUTPUT_HEIGHT; src_h++) {
+                // Load input line into buffer for reuse
+                for (int src_w = 0; src_w < POOL_OUTPUT_WIDTH; src_w++) {
+                    #pragma HLS pipeline II=1
+                    #pragma HLS unroll
+                    for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
+                        #pragma HLS unroll
+                        line_buffer[ch][src_w] = input[batch][ch][src_d][src_h][src_w];
+                    }
+                }
+
+                // Generate upsampled outputs (2x2 expansion per source pixel)
+                for (int h_offset = 0; h_offset < 2; h_offset++) {
+                    int out_h = src_h * 2 + h_offset;
+
+                    if (out_h < INPUT_HEIGHT) {
+                        for (int src_w = 0; src_w < POOL_OUTPUT_WIDTH; src_w++) {
+                            #pragma HLS pipeline II=1
+                            #pragma HLS unroll
+
+                            int out_w_base = src_w * 2;
+
+                            // Process all channels in parallel
+                            for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
+                                #pragma HLS unroll
+
+                                float pixel_val = line_buffer[ch][src_w];
+
+                                // Generate 2x upsampling in width dimension
+                                if (out_w_base < INPUT_WIDTH) {
+                                    // First depth output
+                                    int out_d1 = src_d * 2;
+                                    if (out_d1 < INPUT_DEPTH) {
+                                        output[batch][ch][out_d1][out_h][out_w_base] = pixel_val;
+                                    }
+
+                                    // Second depth output
+                                    int out_d2 = src_d * 2 + 1;
+                                    if (out_d2 < INPUT_DEPTH) {
+                                        output[batch][ch][out_d2][out_h][out_w_base] = pixel_val;
+                                    }
+                                }
+
+                                if (out_w_base + 1 < INPUT_WIDTH) {
+                                    // First depth output
+                                    int out_d1 = src_d * 2;
+                                    if (out_d1 < INPUT_DEPTH) {
+                                        output[batch][ch][out_d1][out_h][out_w_base + 1] = pixel_val;
+                                    }
+
+                                    // Second depth output
+                                    int out_d2 = src_d * 2 + 1;
+                                    if (out_d2 < INPUT_DEPTH) {
+                                        output[batch][ch][out_d2][out_h][out_w_base + 1] = pixel_val;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+template<int T_CHANNELS1, int T_CHANNELS2, int T_CONCAT_CHANNELS>
+void ConcatenateTensors(float tensor1[BATCH_SIZE][T_CHANNELS1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                        float tensor2[BATCH_SIZE][T_CHANNELS2][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                        float output[BATCH_SIZE][T_CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+    #pragma HLS array_partition variable=tensor1 cyclic factor=T_CHANNELS1 dim=2
+    #pragma HLS array_partition variable=tensor2 cyclic factor=T_CHANNELS2 dim=2
+    #pragma HLS array_partition variable=output cyclic factor=T_CONCAT_CHANNELS dim=2
+
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+            for (int height = 0; height < INPUT_HEIGHT; height++) {
+                for (int width = 0; width < INPUT_WIDTH; width++) {
+                    #pragma HLS pipeline II=1
+                    #pragma HLS unroll
+                    // Process tensor1 channels in parallel (F_MAP_0 = 64 channels)
+                    for (int ch = 0; ch < T_CHANNELS1; ch++) {
+                        #pragma HLS unroll
+                        output[batch][ch][depth][height][width] =
+                            tensor1[batch][ch][depth][height][width];
+                    }
+
+                    // Process tensor2 channels in parallel (F_MAP_1 = 128 channels)
+                    for (int ch = 0; ch < T_CHANNELS2; ch++) {
+                        #pragma HLS unroll
+                        output[batch][T_CHANNELS1 + ch][depth][height][width] =
+                            tensor2[batch][ch][depth][height][width];
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Top-level UNet3D function
 void UNet3DReduced(
     // Input
-    float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float input[BATCH_SIZE][IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
 
     // Weights for all layers
-    float input_conv1_weight[F_MAP_h][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float input_conv1_weight[F_MAP_h][IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
     float input_conv2_weight[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
 
     float encoder_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
@@ -332,8 +543,8 @@ void UNet3DReduced(
     float final_conv_bias[OUTPUT_CHANNELS],
 
     // GroupNorm parameters
-    float input_conv1_gamma[INPUT_CHANNELS],
-    float input_conv1_beta[INPUT_CHANNELS],
+    float input_conv1_gamma[IN_CHANNELS],
+    float input_conv1_beta[IN_CHANNELS],
     float input_conv2_gamma[F_MAP_h],
     float input_conv2_beta[F_MAP_h],
 
@@ -484,25 +695,36 @@ void UNet3DReduced(
     #pragma HLS bind_storage variable=final_conv_out type=ram_2p impl=bram
 
     // UNet forward pass
-    // Input Path
-    // [INPUT_CHANNELS] -> DoubleConv -> [F_MAP_0] (split into two streams)
-    InputDoubleConv3D(input, input_conv1_weight, input_conv1_gamma, input_conv1_beta,
-                      input_conv2_weight, input_conv2_gamma, input_conv2_beta,
-                      input_conv_out_main, input_conv_out_skip);
+    // Input Path: [IN_CHANNELS] -> DoubleConv -> [F_MAP_0] (split into two streams)
+    DoubleConv3D2Head<IN_CHANNES, F_MAP_h, F_MAP_0>(
+        input,
+        input_conv1_weight, input_conv1_gamma, input_conv1_beta,
+        input_conv2_weight, input_conv2_gamma, input_conv2_beta,
+        input_conv_out_main,
+        input_conv_out_skip
+    );
 
-    // [F_MAP_0] -> MaxPool -> [F_MAP_0] -> DoubleConv -> [F_MAP_1]
-    EncoderMaxPool3D(input_conv_out_main, encoder_pool_out);
-    EncoderDoubleConv3D(encoder_conv1_weight, encoder_conv1_gamma, encoder_conv1_beta,
-                       encoder_conv2_weight, encoder_conv2_gamma, encoder_conv2_beta,
-                       encoder_pool_out, encoder_conv_out);
+    // Encoder Path: [F_MAP_0] -> MaxPool -> [F_MAP_0] -> DoubleConv -> [F_MAP_1]
+    MaxPool3D<F_MAP_0>(input_conv_out_main, encoder_pool_out);
+
+    DoubleConv3D<F_MAP_0, F_MAP_0, F_MAP_1>(
+        encoder_pool_out,
+        encoder_conv1_weight, encoder_conv1_gamma, encoder_conv1_beta,
+        encoder_conv2_weight, encoder_conv2_gamma, encoder_conv2_beta,
+        encoder_conv_out
+    );
 
     // [F_MAP_1] -> Upsampling -> [F_MAP_1] -> Concat -> [CONCAT_CHANNELS]
-    DecoderUpsample3D(encoder_conv_out, decoder_upsample_out);
-    ConcatenateTensors(input_conv_out_skip, decoder_upsample_out, concat_out);
+    Upsample3D<F_MAP_1>(encoder_conv_out, decoder_upsample_out)
 
-    DecoderDoubleConv3D(decoder_conv1_weight, decoder_conv1_gamma, decoder_conv1_beta,
-                        decoder_conv2_weight, decoder_conv2_gamma, decoder_conv2_beta,
-                        concat_out, decoder_conv_out);
+    ConcatenateTensors<F_MAP_0, F_MAP_1>(input_conv_out_skip, decoder_upsample_out, concat_out);
+
+    DoubleConv3D<CONCAT_CHANNELS, F_MAP_0, F_MAP_0>(
+        concat_out,
+        decoder_conv1_weight, decoder_conv1_gamma, decoder_conv1_beta,
+        decoder_conv2_weight, decoder_conv2_gamma, decoder_conv2_beta,
+        decoder_conv_out
+    )
 
     OutputDoubleConv3D(decoder_conv_out, output_conv1_gamma, output_conv1_beta, output_conv1_weight,
                        output_conv2_gamma, output_conv2_beta, output_conv2_weight, output_conv_out);

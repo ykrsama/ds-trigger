@@ -2,17 +2,20 @@
 
 
 // GroupNorm3D template
-template<int T_IN_CHANNELS>
-void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+template<int T_IN_CHANNELS,
+         int T_INPUT_DEPTH = INPUT_DEPTH,
+         int T_INPUT_HEIGHT = INPUT_HEIGHT,
+         int T_INPUT_WIDTH = INPUT_WIDTH>
+void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                  float gamma[T_IN_CHANNELS],
                  float beta[T_IN_CHANNELS],
-                 float output_data[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+                 float output_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
     // calculate channel number
     int CHANNELS_PER_GROUP = T_IN_CHANNELS / NUM_GROUPS;
-    float N = (float) (INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH * CHANNELS_PER_GROUP);
+    float N = (float) (T_INPUT_DEPTH * T_INPUT_HEIGHT * T_INPUT_WIDTH * CHANNELS_PER_GROUP);
 
     // 1. On chip buffer
-    float gn_buffer[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float gn_buffer[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=uram
 
     // Statistics
@@ -29,9 +32,9 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_
 
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
+            for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+                for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+                    for (int width = 0; width < T_INPUT_WIDTH; width++) {
                         // channel group id
                         int group_idx = ch / CHANNELS_PER_GROUP;
                         // read input data
@@ -63,9 +66,9 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_
     }
 
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-            for (int height = 0; height < INPUT_HEIGHT; height++) {
-                for (int width = 0; width < INPUT_WIDTH; width++) {
+        for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+            for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+                for (int width = 0; width < T_INPUT_WIDTH; width++) {
                     #pragma HLS pipeline II=1
                     for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
                         // channel group id
@@ -92,14 +95,23 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_
 }
 
 // Conv3D template
-template<int T_IN_CHANNELS, int T_OUT_CHANNELS>
-void Conv3d(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-            float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-            float output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+template<int T_IN_CHANNELS,
+         int T_OUT_CHANNELS,
+         int T_INPUT_DEPTH = INPUT_DEPTH,
+         int T_INPUT_HEIGHT = INPUT_HEIGHT,
+         int T_INPUT_WIDTH = INPUT_WIDTH>
+void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+            float input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+            float output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
     #pragma HLS array_partition variable=kernel cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
+
+    // padded size
+    const int PADDED_DEPTH = T_INPUT_DEPTH + 2 * CONV_PADDING;
+    const int PADDED_HEIGHT = T_INPUT_HEIGHT + 2 * CONV_PADDING;
+    const int PADDED_WIDTH = T_INPUT_WIDTH + 2 * CONV_PADDING;
 
     // fill input
     float padded_input[BATCH_SIZE][T_IN_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
@@ -117,9 +129,9 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                         int orig_height = height - CONV_PADDING;
                         int orig_width = width - CONV_PADDING;
 
-                        if (orig_depth >= 0 && orig_depth < INPUT_DEPTH &&
-                            orig_height >= 0 && orig_height < INPUT_HEIGHT &&
-                            orig_width >= 0 && orig_width < INPUT_WIDTH) {
+                        if (orig_depth >= 0 && orig_depth < T_INPUT_DEPTH &&
+                            orig_height >= 0 && orig_height < T_INPUT_HEIGHT &&
+                            orig_width >= 0 && orig_width < T_INPUT_WIDTH) {
                             pad_value = input[batch][in_ch][orig_depth][orig_height][orig_width];
                         }
                         padded_input[batch][in_ch][depth][height][width] = pad_value;
@@ -212,9 +224,9 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                                         }
                                     }
 
-                                    int out_depth = (depth - CONV_KERNEL) / STRIDE + 1;
-                                    int out_height = (height - CONV_KERNEL) / STRIDE + 1;
-                                    int out_width = (width - CONV_KERNEL) / STRIDE + 1;
+                                    int out_depth = (depth - CONV_KERNEL) / CONV_STRIDE + 1;
+                                    int out_height = (height - CONV_KERNEL) / CONV_STRIDE + 1;
+                                    int out_width = (width - CONV_KERNEL) / CONV_STRIDE + 1;
 
                                     // ReLU activation
                                     float output_value = accum[out_ch];
@@ -231,59 +243,69 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
     }
 }
 
-template<int T_IN_CHANNELS, int T_MID_CHANNELS, int T_OUT_CHANNELS>
-void DoubleConv3D(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+template<int T_IN_CHANNELS,
+         int T_MID_CHANNELS,
+         int T_OUT_CHANNELS,
+         int T_INPUT_DEPTH = INPUT_DEPTH,
+         int T_INPUT_HEIGHT = INPUT_HEIGHT,
+         int T_INPUT_WIDTH = INPUT_WIDTH>
+void DoubleConv3D(float input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                   float kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
                   float gamma1[T_IN_CHANNELS],
                   float beta1[T_IN_CHANNELS],
                   float kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
                   float gamma2[T_MID_CHANNELS],
                   float beta2[T_MID_CHANNELS],
-                  float output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+                  float output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
     // buffers
-    float gn1_out[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float gn1_out[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS stream variable=gn1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
-    float conv1_out[BATCH_SIZE][T_MID_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float conv1_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS stream variable=conv1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
 
-    float gn2_out[BATCH_SIZE][T_MID_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float gn2_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS stream variable=gn2_out depth=10 type=fifo
     #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
 
-    GroupNorm3D<T_IN_CHANNELS>(input, gamma1, beta1, gn1_out);
-    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS>(kernel1, gn1_out, conv1_out);
-    GroupNorm3D<T_MID_CHANNELS>(conv1_out, gamma2, beta2, gn2_out);
-    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS>(kernel2, gn2_out, output);
+    GroupNorm3D<T_IN_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(input, gamma1, beta1, gn1_out);
+    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel1, gn1_out, conv1_out);
+    GroupNorm3D<T_MID_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(conv1_out, gamma2, beta2, gn2_out);
+    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel2, gn2_out, output);
 }
 
-template<int T_IN_CHANNELS, int T_MID_CHANNELS, int T_OUT_CHANNELS>
-void DoubleConv3D2Head(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+template<int T_IN_CHANNELS,
+         int T_MID_CHANNELS,
+         int T_OUT_CHANNELS,
+         int T_INPUT_DEPTH = INPUT_DEPTH,
+         int T_INPUT_HEIGHT = INPUT_HEIGHT,
+         int T_INPUT_WIDTH = INPUT_WIDTH>
+void DoubleConv3D2Head(float input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                        float kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
                        float gamma1[T_IN_CHANNELS],
                        float beta1[T_IN_CHANNELS],
                        float kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
                        float gamma2[T_MID_CHANNELS],
                        float beta2[T_MID_CHANNELS],
-                       float output1[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-                       float output2[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+                       float output1[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+                       float output2[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
     // buffers
-    float gn1_out[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float gn1_out[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS stream variable=gn1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
-    float conv1_out[BATCH_SIZE][T_MID_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float conv1_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS stream variable=conv1_out depth=10 type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
 
-    float gn2_out[BATCH_SIZE][T_MID_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float gn2_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS stream variable=gn2_out depth=10 type=fifo
     #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
 
     // Temporary output buffer
-    float temp_output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float temp_output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS stream variable=temp_output depth=10 type=fifo
     #pragma HLS bind_storage variable=temp_output type=ram_t2p impl=bram
 
@@ -296,10 +318,10 @@ void DoubleConv3D2Head(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT
     // TODO: Review here
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int ch = 0; ch < T_OUT_CHANNELS; ch++) {
-            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
-                for (int height = 0; height < INPUT_HEIGHT; height++) {
+            for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+                for (int height = 0; height < T_INPUT_HEIGHT; height++) {
                     #pragma HLS pipeline II=1
-                    for (int width = 0; width < INPUT_WIDTH; width++) {
+                    for (int width = 0; width < T_INPUT_WIDTH; width++) {
                         float value = temp_output[batch][ch][depth][height][width];
                         output1[batch][ch][depth][height][width] = value;
                         output2[batch][ch][depth][height][width] = value;
@@ -388,7 +410,7 @@ void MaxPool3D(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT]
                                             for (int kw = 0; kw < POOL_KERNEL; kw++) {
                                                 float window_val = window_buffer[batch][ch][kd][kh][kw];
                                                 float max_val_temp = max_vals[ch];
-                                                max_vals[ch] = max(max_val_temp, window_val);
+                                                max_vals[ch] = fmax(max_val_temp, window_val);
                                             }
                                         }
                                     }
@@ -397,7 +419,7 @@ void MaxPool3D(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT]
                                     int out_height = (height - POOL_KERNEL) / POOL_STRIDE + 1;
                                     int out_width = (width - POOL_KERNEL) / POOL_STRIDE + 1;
 
-                                    float output_value = max_vals[ch]
+                                    float output_value = max_vals[ch];
                                     output[batch][ch][out_depth][out_height][out_width] = output_value;
                                 }
                             }
@@ -556,6 +578,7 @@ void FinalConv1x1(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIG
     }
 }
 
+// FIXME: un-flatten loops, let Vitis HLS do the optimization
 void Sigmoid3D(float input[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
                float output[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
     // Lookup table for sigmoid values
@@ -797,7 +820,7 @@ void UNet3DReduced(
 
     // UNet forward pass
     // Input Path: [IN_CHANNELS] -> DoubleConv -> [F_MAP_0] (split into two streams)
-    DoubleConv3D2Head<IN_CHANNES, F_MAP_h, F_MAP_0>(
+    DoubleConv3D2Head<IN_CHANNLES, F_MAP_h, F_MAP_0>(
         input,
         input_conv1_weight, input_conv1_gamma, input_conv1_beta,
         input_conv2_weight, input_conv2_gamma, input_conv2_beta,
@@ -808,7 +831,7 @@ void UNet3DReduced(
     // Encoder Path: [F_MAP_0] -> MaxPool -> [F_MAP_0] -> DoubleConv -> [F_MAP_1]
     MaxPool3D<F_MAP_0>(input_conv_out_main, encoder_pool_out);
 
-    DoubleConv3D<F_MAP_0, F_MAP_0, F_MAP_1>(
+    DoubleConv3D<F_MAP_0, F_MAP_0, F_MAP_1, POOL_OUTPUT_DEPTH, POOL_OUTPUT_HEIGHT, POOL_OUTPUT_WIDTH>(
         encoder_pool_out,
         encoder_conv1_weight, encoder_conv1_gamma, encoder_conv1_beta,
         encoder_conv2_weight, encoder_conv2_gamma, encoder_conv2_beta,
@@ -816,7 +839,7 @@ void UNet3DReduced(
     );
 
     // [F_MAP_1] -> Upsampling -> [F_MAP_1] -> Concat -> [CONCAT_CHANNELS]
-    Upsample3D<F_MAP_1>(encoder_conv_out, decoder_upsample_out)
+    Upsample3D<F_MAP_1>(encoder_conv_out, decoder_upsample_out);
 
     ConcatenateTensors<F_MAP_0, F_MAP_1>(input_conv_out_skip, decoder_upsample_out, concat_out);
 
@@ -827,8 +850,12 @@ void UNet3DReduced(
         decoder_conv_out
     )
 
-    OutputDoubleConv3D(decoder_conv_out, output_conv1_gamma, output_conv1_beta, output_conv1_weight,
-                       output_conv2_gamma, output_conv2_beta, output_conv2_weight, output_conv_out);
+    DoubleConv3D<F_MAP_0, F_MAP_0, F_MAP_0>(
+        decoder_conv_out,
+        output_conv1_weight, output_conv1_gamma, output_conv1_beta,
+        output_conv2_weight, output_conv2_gamma, output_conv2_beta,
+        output_conv_out
+    );
 
     FinalConv1x1<F_MAP_0, OUT_CHANNELS>(
         output_conv_out,

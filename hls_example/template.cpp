@@ -21,6 +21,11 @@ void Conv3d(
   #pragma HLS array_partition variable=kernel cyclic factor=KERNEL dim=4
   #pragma HLS array_partition variable=kernel cyclic factor=KERNEL dim=5
 
+  // 填充后尺寸
+  int PADDED_DEPTH = INPUT_DEPTH + 2 * PADDING;
+  int PADDED_HEIGHT = INPUT_HEIGHT + 2 * PADDING;
+  int PADDED_WIDTH = INPUT_WIDTH + 2 * PADDING;
+
   // 填充输入
   float padded_input[BATCH_SIZE][IN_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
   #pragma HLS stream variable=padded_input depth=10 type=fifo

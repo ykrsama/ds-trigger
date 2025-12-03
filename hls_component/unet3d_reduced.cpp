@@ -449,7 +449,6 @@ void Upsample3D(float input[BATCH_SIZE][T_IN_CHANNELS][POOL_OUTPUT_DEPTH][POOL_O
                 // Load input line into buffer for reuse
                 for (int src_w = 0; src_w < POOL_OUTPUT_WIDTH; src_w++) {
                     #pragma HLS pipeline II=1
-                    #pragma HLS unroll
                     for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
                         #pragma HLS unroll
                         line_buffer[ch][src_w] = input[batch][ch][src_d][src_h][src_w];
@@ -463,7 +462,6 @@ void Upsample3D(float input[BATCH_SIZE][T_IN_CHANNELS][POOL_OUTPUT_DEPTH][POOL_O
                     if (out_h < INPUT_HEIGHT) {
                         for (int src_w = 0; src_w < POOL_OUTPUT_WIDTH; src_w++) {
                             #pragma HLS pipeline II=1
-                            #pragma HLS unroll
 
                             int out_w_base = src_w * 2;
 
@@ -523,7 +521,6 @@ void ConcatenateTensors(float tensor1[BATCH_SIZE][T_CHANNELS1][INPUT_DEPTH][INPU
             for (int height = 0; height < INPUT_HEIGHT; height++) {
                 for (int width = 0; width < INPUT_WIDTH; width++) {
                     #pragma HLS pipeline II=1
-                    #pragma HLS unroll
                     // Process tensor1 channels in parallel
                     for (int ch = 0; ch < T_CHANNELS1; ch++) {
                         #pragma HLS unroll
@@ -578,7 +575,6 @@ void FinalConv1x1(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIG
     }
 }
 
-// FIXME: un-flatten loops, let Vitis HLS do the optimization
 void Sigmoid3D(float input[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
                float output[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
     // Lookup table for sigmoid values
@@ -601,47 +597,45 @@ void Sigmoid3D(float input[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][
     #pragma HLS array_partition variable=sigmoid_lut complete dim=1
     #pragma HLS bind_storage variable=sigmoid_lut type=ram_2p impl=lutram
 
-    const int total_elements = BATCH_SIZE * OUT_CHANNELS * INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
+    // Un-flattened nested loops - let Vitis HLS optimize automatically
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int ch = 0; ch < OUT_CHANNELS; ch++) {
+            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+                for (int height = 0; height < INPUT_HEIGHT; height++) {
+                    for (int width = 0; width < INPUT_WIDTH; width++) {
+                        #pragma HLS pipeline II=1
 
-    // Flatten all loops for maximum parallelization
-   for (int i = 0; i < total_elements; i++) {
-        #pragma HLS pipeline II=1
-        #pragma HLS unroll
+                        float x = input[batch][ch][depth][height][width];
 
-        // Calculate indices for multi-dimensional access
-        int width = i % INPUT_WIDTH;
-        int height = (i / INPUT_WIDTH) % INPUT_HEIGHT;
-        int depth = (i / (INPUT_WIDTH * INPUT_HEIGHT)) % INPUT_DEPTH;
-        int ch = (i / (INPUT_WIDTH * INPUT_HEIGHT * INPUT_DEPTH)) % OUT_CHANNELS;
-        int batch = i / (INPUT_WIDTH * INPUT_HEIGHT * INPUT_DEPTH * OUT_CHANNELS);
+                        // Fast sigmoid using lookup table with linear interpolation
+                        float sigmoid_val;
+                        if (x <= -6.0f) {
+                            sigmoid_val = 0.0025f;
+                        } else if (x >= 6.0f) {
+                            sigmoid_val = 0.9975f;
+                        } else {
+                            // Map x from [-6, 6] to [0, 96] index range
+                            float scaled_x = (x + 6.0f) * 8.0f;  // 8 = 96/12
+                            int index = (int)scaled_x;
+                            float frac = scaled_x - (float)index;
 
-        float x = input[batch][ch][depth][height][width];
+                            // Clamp index to valid range
+                            if (index >= 96) {
+                                index = 95;
+                                frac = 1.0f;
+                            }
 
-        // Fast sigmoid using lookup table with linear interpolation
-        float sigmoid_val;
-        if (x <= -6.0f) {
-            sigmoid_val = 0.0025f;
-        } else if (x >= 6.0f) {
-            sigmoid_val = 0.9975f;
-        } else {
-            // Map x from [-6, 6] to [0, 96] index range
-            float scaled_x = (x + 6.0f) * 8.0f;  // 8 = 96/12
-            int index = (int)scaled_x;
-            float frac = scaled_x - (float)index;
+                            // Linear interpolation between two LUT values
+                            float y0 = sigmoid_lut[index];
+                            float y1 = sigmoid_lut[index + 1];
+                            sigmoid_val = y0 + frac * (y1 - y0);
+                        }
 
-            // Clamp index to valid range
-            if (index >= 96) {
-                index = 95;
-                frac = 1.0f;
+                        output[batch][ch][depth][height][width] = sigmoid_val;
+                    }
+                }
             }
-
-            // Linear interpolation between two LUT values
-            float y0 = sigmoid_lut[index];
-            float y1 = sigmoid_lut[index + 1];
-            sigmoid_val = y0 + frac * (y1 - y0);
         }
-
-        output[batch][ch][depth][height][width] = sigmoid_val;
     }
 }
 

@@ -24,12 +24,12 @@ int main() {
     static float input[BATCH_SIZE][IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 
     // Output tensor
-    static float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    static float output[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 
     cout << "Memory allocation complete. Tensor sizes:" << endl;
     cout << "  Input: [" << BATCH_SIZE << ", " << IN_CHANNELS << ", "
          << INPUT_DEPTH << ", " << INPUT_HEIGHT << ", " << INPUT_WIDTH << "]" << endl;
-    cout << "  Output: [" << BATCH_SIZE << ", " << OUTPUT_CHANNELS << ", "
+    cout << "  Output: [" << BATCH_SIZE << ", " << OUT_CHANNELS << ", "
          << INPUT_DEPTH << ", " << INPUT_HEIGHT << ", " << INPUT_WIDTH << "]" << endl;
 
     // Initialize input data with random values
@@ -110,11 +110,11 @@ int main() {
     // Check for valid output range (sigmoid outputs should be between 0 and 1)
     float min_val = 1e9f, max_val = -1e9f;
     float sum_val = 0.0f;
-    int total_elements = BATCH_SIZE * OUTPUT_CHANNELS * INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
+    int total_elements = BATCH_SIZE * OUT_CHANNELS * INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
     int nan_count = 0, inf_count = 0;
 
     for (int b = 0; b < BATCH_SIZE; b++) {
-        for (int c = 0; c < OUTPUT_CHANNELS; c++) {
+        for (int c = 0; c < OUT_CHANNELS; c++) {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
@@ -149,7 +149,7 @@ int main() {
     cout << "Saving output data to 'output_data.txt'..." << endl;
     ofstream output_file("output_data.txt");
     for (int b = 0; b < BATCH_SIZE; b++) {
-        for (int c = 0; c < OUTPUT_CHANNELS; c++) {
+        for (int c = 0; c < OUT_CHANNELS; c++) {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
@@ -164,7 +164,7 @@ int main() {
 
     // Sample output values for manual verification
     cout << "Sample output values:" << endl;
-    for (int i = 0; i < min(5, OUTPUT_CHANNELS); i++) {
+    for (int i = 0; i < min(5, OUT_CHANNELS); i++) {
         cout << "  Channel " << i << " at (0,0,0): "
              << output[0][i][0][0][0] << endl;
     }

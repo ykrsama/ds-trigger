@@ -594,7 +594,7 @@ void Sigmoid3D(float input[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][
         1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f,
         1.0000f
     };
-    #pragma HLS array_partition variable=sigmoid_lut complete dim=1
+    #pragma HLS array_partition variable=sigmoid_lut complete dim=OUT_CHANNELS
     #pragma HLS bind_storage variable=sigmoid_lut type=ram_2p impl=lutram
 
     // Un-flattened nested loops - let Vitis HLS optimize automatically

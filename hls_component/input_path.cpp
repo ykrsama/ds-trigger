@@ -6,19 +6,22 @@ void InputGroupNorm3D_1(
         float beta[INPUT_CHANNELS],
         float output_data[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
+    // calculate channel number
     int CHANNELS_PER_GROUP = INPUT_CHANNELS / NUM_GROUPS;
     float N = (float)(INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH * CHANNELS_PER_GROUP);
 
+    // 1. On chip buffer
     float gn_buffer[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-#pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=uram
+    #pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=uram
 
+    // Statistics
     float group_sum[NUM_GROUPS];
     float group_sq_sum[NUM_GROUPS];
-#pragma HLS array_partition variable=group_sum complete
-#pragma HLS array_partition variable=group_sq_sum complete
+    #pragma HLS array_partition variable=group_sum complete
+    #pragma HLS array_partition variable=group_sq_sum complete
 
     for (int g = 0; g < NUM_GROUPS; g++) {
-#pragma HLS unroll
+    #pragma HLS unroll
         group_sum[g] = (float)0.000000;
         group_sq_sum[g] = (float)0.000000;
     }
@@ -28,9 +31,13 @@ void InputGroupNorm3D_1(
             for (int depth = 0; depth < INPUT_DEPTH; depth++) {
                 for (int height = 0; height < INPUT_HEIGHT; height++) {
                     for (int width = 0; width < INPUT_WIDTH; width++) {
+                        // channel group id
                         int group_idx = ch / CHANNELS_PER_GROUP;
+                        // read input data
                         float value = input_data[batch][ch][depth][height][width];
+                        // write buffer
                         gn_buffer[batch][ch][depth][height][width] = value;
+                        // add statistics
                         group_sum[group_idx] += value;
                         group_sq_sum[group_idx] += (value * value);
                     }
@@ -41,11 +48,11 @@ void InputGroupNorm3D_1(
 
     float mean[NUM_GROUPS];
     float inv_std[NUM_GROUPS];
-#pragma HLS array_partition variable=mean complete
-#pragma HLS array_partition variable=inv_std complete
+    #pragma HLS array_partition variable=mean complete
+    #pragma HLS array_partition variable=inv_std complete
 
     for (int g = 0; g < NUM_GROUPS; g++) {
-#pragma HLS unroll
+        #pragma HLS unroll
         float mu = group_sum[g] / N;
         float variance = (group_sq_sum[g] / N) - (mu * mu);
         float sigma = sqrt(variance + EPSILON);
@@ -58,16 +65,23 @@ void InputGroupNorm3D_1(
         for (int depth = 0; depth < INPUT_DEPTH; depth++) {
             for (int height = 0; height < INPUT_HEIGHT; height++) {
                 for (int width = 0; width < INPUT_WIDTH; width++) {
-#pragma HLS pipeline II=1
+                    #pragma HLS pipeline II=1
                     for (int ch = 0; ch < INPUT_CHANNELS; ch++) {
+                        // channel group id
                         int group_idx = ch / CHANNELS_PER_GROUP;
+                        // read from buffer
                         float value = gn_buffer[batch][ch][depth][height][width];
+                        // gamma and beta
                         float gamma_param = gamma[ch];
                         float beta_param = beta[ch];
+                        // statistics
                         float group_mean = mean[group_idx];
                         float group_inv_std = inv_std[group_idx];
+                        // normalize
                         float normalized_value = (value - group_mean) * group_inv_std;
+                        // scale and shift
                         float output_value = normalized_value * gamma_param + beta_param;
+                        // write output
                         output_data[batch][ch][depth][height][width] = output_value;
                     }
                 }
@@ -82,19 +96,22 @@ void InputGroupNorm3D_2(
         float beta[F_MAP_h],
         float output_data[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
+    // calculate channel number
     int CHANNELS_PER_GROUP = F_MAP_h / NUM_GROUPS;
     float N = (float)(INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH * CHANNELS_PER_GROUP);
 
+    // 1. On chip buffer
     float gn_buffer[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-#pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=uram
+    #pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=uram
 
+    // Statistics
     float group_sum[NUM_GROUPS];
     float group_sq_sum[NUM_GROUPS];
-#pragma HLS array_partition variable=group_sum complete
-#pragma HLS array_partition variable=group_sq_sum complete
+    #pragma HLS array_partition variable=group_sum complete
+    #pragma HLS array_partition variable=group_sq_sum complete
 
     for (int g = 0; g < NUM_GROUPS; g++) {
-#pragma HLS unroll
+        #pragma HLS unroll
         group_sum[g] = (float)0.000000;
         group_sq_sum[g] = (float)0.000000;
     }
@@ -104,9 +121,13 @@ void InputGroupNorm3D_2(
             for (int depth = 0; depth < INPUT_DEPTH; depth++) {
                 for (int height = 0; height < INPUT_HEIGHT; height++) {
                     for (int width = 0; width < INPUT_WIDTH; width++) {
+                        // channel group id
                         int group_idx = ch / CHANNELS_PER_GROUP;
+                        // read input data
                         float value = input_data[batch][ch][depth][height][width];
+                        // write buffer
                         gn_buffer[batch][ch][depth][height][width] = value;
+                        // add statistics
                         group_sum[group_idx] += value;
                         group_sq_sum[group_idx] += (value * value);
                     }
@@ -117,11 +138,11 @@ void InputGroupNorm3D_2(
 
     float mean[NUM_GROUPS];
     float inv_std[NUM_GROUPS];
-#pragma HLS array_partition variable=mean complete
-#pragma HLS array_partition variable=inv_std complete
+    #pragma HLS array_partition variable=mean complete
+    #pragma HLS array_partition variable=inv_std complete
 
     for (int g = 0; g < NUM_GROUPS; g++) {
-#pragma HLS unroll
+        #pragma HLS unroll
         float mu = group_sum[g] / N;
         float variance = (group_sq_sum[g] / N) - (mu * mu);
         float sigma = sqrt(variance + EPSILON);
@@ -134,16 +155,23 @@ void InputGroupNorm3D_2(
         for (int depth = 0; depth < INPUT_DEPTH; depth++) {
             for (int height = 0; height < INPUT_HEIGHT; height++) {
                 for (int width = 0; width < INPUT_WIDTH; width++) {
-#pragma HLS pipeline II=1
+                    #pragma HLS pipeline II=1
                     for (int ch = 0; ch < F_MAP_h; ch++) {
+                        // channel group id
                         int group_idx = ch / CHANNELS_PER_GROUP;
+                        // read from buffer
                         float value = gn_buffer[batch][ch][depth][height][width];
+                        // gamma and beta
                         float gamma_param = gamma[ch];
                         float beta_param = beta[ch];
+                        // statistics
                         float group_mean = mean[group_idx];
                         float group_inv_std = inv_std[group_idx];
+                        // normalize
                         float normalized_value = (value - group_mean) * group_inv_std;
+                        // scale and shift
                         float output_value = normalized_value * gamma_param + beta_param;
+                        // write output
                         output_data[batch][ch][depth][height][width] = output_value;
                     }
                 }
@@ -157,22 +185,23 @@ void InputConv3D_1(
         float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
         float output[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-#pragma HLS array_partition variable=kernel cyclic factor=INPUT_CHANNELS dim=2
-#pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
-#pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
-#pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS array_partition variable=kernel cyclic factor=INPUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
 
+    // fill input
     float padded_input[BATCH_SIZE][INPUT_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
-#pragma HLS stream variable=padded_input depth=10 type=fifo
-#pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
+    #pragma HLS stream variable=padded_input depth=10 type=fifo
+    #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
-    // Padding operation
+    // Filling operation
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int depth = 0; depth < PADDED_DEPTH; depth++) {
             for (int height = 0; height < PADDED_HEIGHT; height++) {
                 for (int width = 0; width < PADDED_WIDTH; width++) {
                     for (int in_ch = 0; in_ch < INPUT_CHANNELS; in_ch++) {
-                        float pad_value = 0.0f;
+                        float pad_value = (float)0.000000;
                         int orig_depth = depth - CONV_PADDING;
                         int orig_height = height - CONV_PADDING;
                         int orig_width = width - CONV_PADDING;
@@ -191,17 +220,17 @@ void InputConv3D_1(
 
     // Buffer definitions for convolution
     float cube_buffer[BATCH_SIZE][INPUT_CHANNELS][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
-#pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
+    #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
 
     float line_buffer[BATCH_SIZE][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
-#pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
     float window_buffer[BATCH_SIZE][INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-#pragma HLS array_partition variable=window_buffer cyclic factor=INPUT_CHANNELS dim=2
-#pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=3
-#pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=4
-#pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=5
-#pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
+    #pragma HLS array_partition variable=window_buffer cyclic factor=INPUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
 
     // Convolution computation
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
@@ -249,16 +278,16 @@ void InputConv3D_1(
 
                             // Convolution computation
                             if (width >= CONV_KERNEL - 1 &&
-                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
-                                (height - CONV_KERNEL + 1) % 1 == 0 &&
-                                (width - CONV_KERNEL + 1) % 1 == 0) {
+                                (depth) % CONV_STRIDE == 0 &&
+                                (height) % CONV_STRIDE == 0 &&
+                                (width) % CONV_STRIDE == 0) {
 
                                 float accum[F_MAP_h];
-#pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
 
                                 for (int out_ch = 0; out_ch < F_MAP_h; out_ch++) {
-#pragma HLS pipeline II=1
-                                    accum[out_ch] = 0.0f;
+                                    #pragma HLS pipeline II=1
+                                    accum[out_ch] = (float)0.000000;
 
                                     for (int in_ch = 0; in_ch < INPUT_CHANNELS; in_ch++) {
                                         for (int kd = 0; kd < CONV_KERNEL; kd++) {
@@ -278,8 +307,8 @@ void InputConv3D_1(
 
                                     // ReLU activation
                                     float output_value = accum[out_ch];
-                                    bool is_positive = output_value > 0.0f;
-                                    float relu_output = is_positive ? output_value : 0.0f;
+                                    bool is_positive = output_value > (float)0.000000;
+                                    float relu_output = is_positive ? output_value : (float)0.000000;
                                     output[batch][out_ch][out_depth][out_height][out_width] = relu_output;
                                 }
                             }
@@ -296,40 +325,23 @@ void InputConv3D_2(
         float input[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
         float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-#pragma HLS array_partition variable=kernel cyclic factor=F_MAP_h dim=2
-#pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
-#pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
-#pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS array_partition variable=kernel cyclic factor=F_MAP_h dim=2
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
 
-    // Similar implementation as InputConv3D_1 but with F_MAP_h -> F_MAP_0 dimensions
-    // Buffer definitions for convolution
-    float cube_buffer[BATCH_SIZE][F_MAP_h][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
-#pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
+    // fill input
+    float padded_input[BATCH_SIZE][F_MAP_h][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS stream variable=padded_input depth=10 type=fifo
+    #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
-    float line_buffer[BATCH_SIZE][F_MAP_h][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
-#pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
-
-    float window_buffer[BATCH_SIZE][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-#pragma HLS array_partition variable=window_buffer cyclic factor=F_MAP_h dim=2
-#pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=3
-#pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=4
-#pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=5
-#pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
-
-    // Convolution computation with padding
+    // Filling operation
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int depth = 0; depth < PADDED_DEPTH; depth++) {
             for (int height = 0; height < PADDED_HEIGHT; height++) {
                 for (int width = 0; width < PADDED_WIDTH; width++) {
-
-                    // Update cube buffer with padded input
                     for (int in_ch = 0; in_ch < F_MAP_h; in_ch++) {
-                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
-                            cube_buffer[batch][in_ch][kd][height][width] =
-                                    cube_buffer[batch][in_ch][kd + 1][height][width];
-                        }
-                        // Apply padding on the fly
-                        float pad_value = 0.0f;
+                        float pad_value = (float)0.000000;
                         int orig_depth = depth - CONV_PADDING;
                         int orig_height = height - CONV_PADDING;
                         int orig_width = width - CONV_PADDING;
@@ -339,7 +351,41 @@ void InputConv3D_2(
                             orig_width >= 0 && orig_width < INPUT_WIDTH) {
                             pad_value = input[batch][in_ch][orig_depth][orig_height][orig_width];
                         }
-                        cube_buffer[batch][in_ch][CONV_KERNEL - 1][height][width] = pad_value;
+                        padded_input[batch][in_ch][depth][height][width] = pad_value;
+                    }
+                }
+            }
+        }
+    }
+
+    // Buffer definitions for convolution
+    float cube_buffer[BATCH_SIZE][F_MAP_h][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
+
+    float line_buffer[BATCH_SIZE][F_MAP_h][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
+
+    float window_buffer[BATCH_SIZE][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer cyclic factor=F_MAP_h dim=2
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=4
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
+
+    // Convolution computation with padding
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int depth = 0; depth < PADDED_DEPTH; depth++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+                for (int width = 0; width < PADDED_WIDTH; width++) {
+
+                    // Update cube buffer
+                    for (int in_ch = 0; in_ch < F_MAP_h; in_ch++) {
+                        for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            cube_buffer[batch][in_ch][kd][height][width] =
+                                    cube_buffer[batch][in_ch][kd + 1][height][width];
+                        }
+                        cube_buffer[batch][in_ch][CONV_KERNEL - 1][height][width] =
+                                padded_input[batch][in_ch][depth][height][width];
                     }
 
                     if (depth >= CONV_KERNEL - 1) {
@@ -372,15 +418,15 @@ void InputConv3D_2(
 
                             // Convolution computation
                             if (width >= CONV_KERNEL - 1 &&
-                                (depth - CONV_KERNEL + 1) % 1 == 0 &&
-                                (height - CONV_KERNEL + 1) % 1 == 0 &&
-                                (width - CONV_KERNEL + 1) % 1 == 0) {
+                                (depth) % CONV_STRIDE == 0 &&
+                                (height) % CONV_STRIDE == 0 &&
+                                (width) % CONV_STRIDE == 0) {
 
                                 float accum[F_MAP_0];
-#pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
 
                                 for (int out_ch = 0; out_ch < F_MAP_0; out_ch++) {
-#pragma HLS pipeline II=1
+                                    #pragma HLS pipeline II=1
                                     accum[out_ch] = 0.0f;
 
                                     for (int in_ch = 0; in_ch < F_MAP_h; in_ch++) {
@@ -425,38 +471,22 @@ void InputDoubleConv3D(
         float output_main[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
         float output_skip[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-#pragma HLS interface s_axilite port=return
-#pragma HLS interface bram port=input
-#pragma HLS bind_storage variable=input type=ram_t2p impl=bram
-#pragma HLS interface bram port=kernel1
-#pragma HLS bind_storage variable=kernel1 type=ram_t2p impl=bram
-#pragma HLS interface bram port=gamma1
-#pragma HLS bind_storage variable=gamma1 type=ram_t2p impl=bram
-#pragma HLS interface bram port=beta1
-#pragma HLS bind_storage variable=beta1 type=ram_t2p impl=bram
-#pragma HLS interface bram port=kernel2
-#pragma HLS bind_storage variable=kernel2 type=ram_t2p impl=bram
-#pragma HLS interface bram port=gamma2
-#pragma HLS bind_storage variable=gamma2 type=ram_t2p impl=bram
-#pragma HLS interface bram port=beta2
-#pragma HLS bind_storage variable=beta2 type=ram_t2p impl=bram
-#pragma HLS interface bram port=output_main
-#pragma HLS bind_storage variable=output_main type=ram_t2p impl=bram
-#pragma HLS interface bram port=output_skip
-#pragma HLS bind_storage variable=output_skip type=ram_t2p impl=bram
-
     float gn1_out[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-#pragma HLS stream variable=gn1_out depth=10 type=fifo
+    #pragma HLS stream variable=gn1_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
     float conv1_out[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-#pragma HLS stream variable=conv1_out depth=10 type=fifo
+    #pragma HLS stream variable=conv1_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
 
     float gn2_out[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-#pragma HLS stream variable=gn2_out depth=10 type=fifo
+    #pragma HLS stream variable=gn2_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
 
     // Temporary output buffer
     float temp_output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-#pragma HLS stream variable=temp_output depth=10 type=fifo
+    #pragma HLS stream variable=temp_output depth=10 type=fifo
+    #pragma HLS bind_storage variable=temp_output type=ram_t2p impl=bram
 
     InputGroupNorm3D_1(input, gamma1, beta1, gn1_out);
     InputConv3D_1(kernel1, gn1_out, conv1_out);
@@ -468,7 +498,7 @@ void InputDoubleConv3D(
         for (int ch = 0; ch < F_MAP_0; ch++) {
             for (int depth = 0; depth < INPUT_DEPTH; depth++) {
                 for (int height = 0; height < INPUT_HEIGHT; height++) {
-#pragma HLS pipeline II=1
+                    #pragma HLS pipeline II=1
                     for (int width = 0; width < INPUT_WIDTH; width++) {
                         float value = temp_output[batch][ch][depth][height][width];
                         output_main[batch][ch][depth][height][width] = value;

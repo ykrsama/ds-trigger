@@ -3,9 +3,9 @@
 
 // GroupNorm3D template
 template<int T_IN_CHANNELS,
-         int T_INPUT_DEPTH = INPUT_DEPTH,
-         int T_INPUT_HEIGHT = INPUT_HEIGHT,
-         int T_INPUT_WIDTH = INPUT_WIDTH>
+         int T_INPUT_DEPTH,
+         int T_INPUT_HEIGHT,
+         int T_INPUT_WIDTH>
 void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                  float gamma[T_IN_CHANNELS],
                  float beta[T_IN_CHANNELS],
@@ -97,9 +97,9 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
 // Conv3D template
 template<int T_IN_CHANNELS,
          int T_OUT_CHANNELS,
-         int T_INPUT_DEPTH = INPUT_DEPTH,
-         int T_INPUT_HEIGHT = INPUT_HEIGHT,
-         int T_INPUT_WIDTH = INPUT_WIDTH>
+         int T_INPUT_DEPTH,
+         int T_INPUT_HEIGHT,
+         int T_INPUT_WIDTH>
 void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
             float input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
             float output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
@@ -246,9 +246,9 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
 template<int T_IN_CHANNELS,
          int T_MID_CHANNELS,
          int T_OUT_CHANNELS,
-         int T_INPUT_DEPTH = INPUT_DEPTH,
-         int T_INPUT_HEIGHT = INPUT_HEIGHT,
-         int T_INPUT_WIDTH = INPUT_WIDTH>
+         int T_INPUT_DEPTH,
+         int T_INPUT_HEIGHT,
+         int T_INPUT_WIDTH>
 void DoubleConv3D(float input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                   float kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
                   float gamma1[T_IN_CHANNELS],
@@ -279,9 +279,9 @@ void DoubleConv3D(float input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_
 template<int T_IN_CHANNELS,
          int T_MID_CHANNELS,
          int T_OUT_CHANNELS,
-         int T_INPUT_DEPTH = INPUT_DEPTH,
-         int T_INPUT_HEIGHT = INPUT_HEIGHT,
-         int T_INPUT_WIDTH = INPUT_WIDTH>
+         int T_INPUT_DEPTH,
+         int T_INPUT_HEIGHT,
+         int T_INPUT_WIDTH>
 void DoubleConv3D2Head(float input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                        float kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
                        float gamma1[T_IN_CHANNELS],

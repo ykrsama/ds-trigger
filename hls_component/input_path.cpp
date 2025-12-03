@@ -422,7 +422,8 @@ void InputDoubleConv3D(
         float kernel2[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
         float gamma2[F_MAP_h],
         float beta2[F_MAP_h],
-        float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+        float output_main[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+        float output_skip[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
 #pragma HLS interface s_axilite port=return
 #pragma HLS interface bram port=input
@@ -439,8 +440,10 @@ void InputDoubleConv3D(
 #pragma HLS bind_storage variable=gamma2 type=ram_t2p impl=bram
 #pragma HLS interface bram port=beta2
 #pragma HLS bind_storage variable=beta2 type=ram_t2p impl=bram
-#pragma HLS interface bram port=output
-#pragma HLS bind_storage variable=output type=ram_t2p impl=bram
+#pragma HLS interface bram port=output_main
+#pragma HLS bind_storage variable=output_main type=ram_t2p impl=bram
+#pragma HLS interface bram port=output_skip
+#pragma HLS bind_storage variable=output_skip type=ram_t2p impl=bram
 
     float gn1_out[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 #pragma HLS stream variable=gn1_out depth=10 type=fifo
@@ -451,8 +454,28 @@ void InputDoubleConv3D(
     float gn2_out[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 #pragma HLS stream variable=gn2_out depth=10 type=fifo
 
+    // Temporary output buffer
+    float temp_output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+#pragma HLS stream variable=temp_output depth=10 type=fifo
+
     InputGroupNorm3D_1(input, gamma1, beta1, gn1_out);
     InputConv3D_1(kernel1, gn1_out, conv1_out);
     InputGroupNorm3D_2(conv1_out, gamma2, beta2, gn2_out);
-    InputConv3D_2(kernel2, gn2_out, output);
+    InputConv3D_2(kernel2, gn2_out, temp_output);
+
+    // Duplicate output to both streams for skip connection
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int ch = 0; ch < F_MAP_0; ch++) {
+            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+                for (int height = 0; height < INPUT_HEIGHT; height++) {
+#pragma HLS pipeline II=1
+                    for (int width = 0; width < INPUT_WIDTH; width++) {
+                        float value = temp_output[batch][ch][depth][height][width];
+                        output_main[batch][ch][depth][height][width] = value;
+                        output_skip[batch][ch][depth][height][width] = value;
+                    }
+                }
+            }
+        }
+    }
 }

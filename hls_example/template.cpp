@@ -16,17 +16,10 @@ void Conv3d(
   float input[BATCH_SIZE][IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
   float output[BATCH_SIZE][OUT_CHANNELS][OUTPUT_DEPTH][OUTPUT_HEIGHT][OUTPUT_WIDTH]
 ) {
-  #pragma HLS dataflow
-
   #pragma HLS array_partition variable=kernel cyclic factor=IN_CHANNELS dim=2
   #pragma HLS array_partition variable=kernel cyclic factor=KERNEL dim=3
   #pragma HLS array_partition variable=kernel cyclic factor=KERNEL dim=4
   #pragma HLS array_partition variable=kernel cyclic factor=KERNEL dim=5
-  
-  // 填充后尺寸
-  int PADDED_DEPTH = INPUT_DEPTH + 2 * PADDING;
-  int PADDED_HEIGHT = INPUT_HEIGHT + 2 * PADDING;
-  int PADDED_WIDTH = INPUT_WIDTH + 2 * PADDING;
 
   // 填充输入
   float padded_input[BATCH_SIZE][IN_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
@@ -57,7 +50,7 @@ void Conv3d(
   }
 
   // 卷积输出
-  float conv_out[BATCH_SIZE][OUT_CHANNELS][OUTPUT_DEPTH][OUTPUT_HEIGHT][OUTPUT_WIDTH];
+  float [BATCH_SIZE][OUT_CHANNELS][OUTPUT_DEPTH][OUTPUT_HEIGHT][OUTPUT_WIDTH];
   #pragma HLS stream variable=conv_out depth=10 type=fifo
   #pragma HLS bind_storage variable=conv_out type=ram_t2p impl=bram
 

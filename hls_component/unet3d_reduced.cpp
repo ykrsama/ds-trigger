@@ -1,4 +1,4 @@
-#include "include/unet3d_reduced.h"
+#include "unet3d_reduced.h"
 
 
 // GroupNorm3D template

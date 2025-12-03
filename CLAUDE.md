@@ -6,21 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains a Xilinx Vitis HLS implementation of a 3D U-Net with reduced contraction path for efficient FPGA acceleration as part of the DarkSHINE experiment trigger system. The project converts PyTorch neural network models to HLS-optimized C++ code for FPGA deployment.
 
-## Key Commands
-
-### Python Scripts
-- `python3 analyze_checkpoints.py` - Analyze PyTorch checkpoint files and display weight information
-- `python3 convert_weights.py` - Convert PyTorch model weights to HLS-compatible C++ format
-
 ### HLS Development
 - HLS project configuration is in `hls_component/hls_config.cfg`
 - Target FPGA part: `xczu15eg-ffvb1156-2-i` (Zynq UltraScale+)
+- Top function: `UNet3DReduced`
 - Main HLS source files are in `hls_component/`:
-  - `unet3d_reduced.cpp` - Main U-Net implementation
-  - `unet3d_reduced.h` - Network configuration and function declarations
-  - `testbench.cpp` - HLS testbench
-  - `unet_weights_data.cpp` - Converted weight data (auto-generated)
-  - `unet_weights.h` - Weight declarations
+  - `hls_component/unet3d_reduced.cpp` - Main U-Net implementation
+  - `hls_component/unet3d_reduced.h` - Network configuration and function declarations
+  - `hls_component/testbench.cpp` - HLS testbench
+  - `hls_component/unet_weights_data.cpp` - Converted weight data (auto-generated)
+  - `hls_component/input_path.cpp` - implementation of InputDoubleConv3D
+  - `hls_component/encoder_path.cpp` - implementation of EncoderDoubleConv3D
+  - `hls_component/decoder_path.cpp` - implementation of DecoderDoubleConv3D
+  - `hls_component/output_path.cpp` - implementation of OutputDoubleConv3D
+  - `hls_component/include/unet_weights.h` - Weight declarations
 
 ## Architecture
 

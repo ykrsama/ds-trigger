@@ -153,10 +153,13 @@ void UNet3DReduced(
 
     // Intermediate buffers for dataflow
 
-    // Input path buffers
-    float input_conv_out[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS stream variable=input_conv_out depth=10 type=fifo
-    #pragma HLS bind_storage variable=input_conv_out type=ram_2p impl=uram
+    // Input path buffers - need two streams for skip connection
+    float input_conv_out_main[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float input_conv_out_skip[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=input_conv_out_main depth=10 type=fifo
+    #pragma HLS stream variable=input_conv_out_skip depth=10 type=fifo
+    #pragma HLS bind_storage variable=input_conv_out_main type=ram_2p impl=uram
+    #pragma HLS bind_storage variable=input_conv_out_skip type=ram_2p impl=uram
 
     // Encoder path buffers
     float encoder_pool_out[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
@@ -190,16 +193,22 @@ void UNet3DReduced(
     #pragma HLS bind_storage variable=final_conv_out type=ram_2p impl=uram
 
     // UNet forward pass
+    // Input Path
+    // [INPUT_CHANNELS] -> DoubleConv -> [F_MAP_0] (split into two streams)
     InputDoubleConv3D(input, input_conv1_weight, input_conv1_gamma, input_conv1_beta,
-                      input_conv2_weight, input_conv2_gamma, input_conv2_beta, input_conv_out);
+                      input_conv2_weight, input_conv2_gamma, input_conv2_beta,
+                      input_conv_out_main, input_conv_out_skip);
 
-    EncoderMaxPool3D(input_conv_out, encoder_pool_out);
+    // [F_MAP_0] -> MaxPool -> [F_MAP_0] -> DoubleConv -> [F_MAP_1]
+    EncoderMaxPool3D(input_conv_out_main, encoder_pool_out);
     EncoderDoubleConv3D(encoder_conv1_weight, encoder_conv1_gamma, encoder_conv1_beta,
                        encoder_conv2_weight, encoder_conv2_gamma, encoder_conv2_beta,
                        encoder_pool_out, encoder_conv_out);
 
+    // [F_MAP_1] -> Upsampling -> [F_MAP_1] -> Concat -> [CONCAT_CHANNELS]
     DecoderUpsample3D(encoder_conv_out, decoder_upsample_out);
-    ConcatenateTensors(input_conv_out, decoder_upsample_out, concat_out);
+    ConcatenateTensors(input_conv_out_skip, decoder_upsample_out, concat_out);
+
     DecoderDoubleConv3D(decoder_conv1_weight, decoder_conv1_gamma, decoder_conv1_beta,
                         decoder_conv2_weight, decoder_conv2_gamma, decoder_conv2_beta,
                         concat_out, decoder_conv_out);

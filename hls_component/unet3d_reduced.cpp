@@ -556,8 +556,8 @@ void FinalConv1x1(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIG
     }
 }
 
-void Sigmoid3D(float input[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-               float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+void Sigmoid3D(float input[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+               float output[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
     // Lookup table for sigmoid values
     // Pre-computed for range [-6, 6] with 0.125 step size (97 entries)
     static const float sigmoid_lut[97] = {
@@ -578,7 +578,7 @@ void Sigmoid3D(float input[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGH
     #pragma HLS array_partition variable=sigmoid_lut complete dim=1
     #pragma HLS bind_storage variable=sigmoid_lut type=ram_2p impl=lutram
 
-    const int total_elements = BATCH_SIZE * OUTPUT_CHANNELS * INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
+    const int total_elements = BATCH_SIZE * OUT_CHANNELS * INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
 
     // Flatten all loops for maximum parallelization
    for (int i = 0; i < total_elements; i++) {
@@ -589,8 +589,8 @@ void Sigmoid3D(float input[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGH
         int width = i % INPUT_WIDTH;
         int height = (i / INPUT_WIDTH) % INPUT_HEIGHT;
         int depth = (i / (INPUT_WIDTH * INPUT_HEIGHT)) % INPUT_DEPTH;
-        int ch = (i / (INPUT_WIDTH * INPUT_HEIGHT * INPUT_DEPTH)) % OUTPUT_CHANNELS;
-        int batch = i / (INPUT_WIDTH * INPUT_HEIGHT * INPUT_DEPTH * OUTPUT_CHANNELS);
+        int ch = (i / (INPUT_WIDTH * INPUT_HEIGHT * INPUT_DEPTH)) % OUT_CHANNELS;
+        int batch = i / (INPUT_WIDTH * INPUT_HEIGHT * INPUT_DEPTH * OUT_CHANNELS);
 
         float x = input[batch][ch][depth][height][width];
 
@@ -640,8 +640,8 @@ void UNet3DReduced(
     float output_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
     float output_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
 
-    float final_conv_weight[OUTPUT_CHANNELS][F_MAP_0][1][1][1],
-    float final_conv_bias[OUTPUT_CHANNELS],
+    float final_conv_weight[OUT_CHANNELS][F_MAP_0][1][1][1],
+    float final_conv_bias[OUT_CHANNELS],
 
     // GroupNorm parameters
     float input_conv1_gamma[IN_CHANNELS],
@@ -665,7 +665,7 @@ void UNet3DReduced(
     float output_conv2_beta[F_MAP_0],
 
     // Output
-    float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+    float output[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
     #pragma HLS interface s_axilite port=return
 
@@ -791,7 +791,7 @@ void UNet3DReduced(
     #pragma HLS stream variable=output_conv_out depth=10 type=fifo
     #pragma HLS bind_storage variable=output_conv_out type=ram_2p impl=bram
 
-    float final_conv_out[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float final_conv_out[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     #pragma HLS stream variable=final_conv_out depth=10 type=fifo
     #pragma HLS bind_storage variable=final_conv_out type=ram_2p impl=bram
 
@@ -830,7 +830,7 @@ void UNet3DReduced(
     OutputDoubleConv3D(decoder_conv_out, output_conv1_gamma, output_conv1_beta, output_conv1_weight,
                        output_conv2_gamma, output_conv2_beta, output_conv2_weight, output_conv_out);
 
-    FinalConv1x1<F_MAP_0, OUTPUT_CHANNELS>(
+    FinalConv1x1<F_MAP_0, OUT_CHANNELS>(
         output_conv_out,
         final_conv_weight,
         final_conv_bias,

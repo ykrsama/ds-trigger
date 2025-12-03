@@ -65,8 +65,8 @@ void FinalConv1x1(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIG
                   float bias[T_OUT_CHANNELS],
                   float output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 
-void Sigmoid3D(float input[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-               float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
+void Sigmoid3D(float input[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+               float output[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 
 // Top-level UNet3D function
 void UNet3DReduced(
@@ -86,8 +86,8 @@ void UNet3DReduced(
     float output_conv1_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
     float output_conv2_weight[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
 
-    float final_conv_weight[OUTPUT_CHANNELS][F_MAP_0][1][1][1],
-    float final_conv_bias[OUTPUT_CHANNELS],
+    float final_conv_weight[OUT_CHANNELS][F_MAP_0][1][1][1],
+    float final_conv_bias[OUT_CHANNELS],
 
     // GroupNorm parameters
     float input_conv1_gamma[IN_CHANNELS],
@@ -111,7 +111,7 @@ void UNet3DReduced(
     float output_conv2_beta[F_MAP_0],
 
     // Output
-    float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+    float output[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );
 
 #endif // UNET3D_REDUCED_H

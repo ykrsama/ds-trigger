@@ -1,4 +1,4 @@
-#include "include/unet3d_reduced.h"
+#include "unet3d_reduced.h"
 #include <iostream>
 #include <fstream>
 #include <random>
@@ -21,13 +21,13 @@ int main() {
     cout << "Allocating memory for input/output tensors..." << endl;
 
     // Input tensor
-    static float input[BATCH_SIZE][INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    static float input[BATCH_SIZE][IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 
     // Output tensor
     static float output[BATCH_SIZE][OUTPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 
     cout << "Memory allocation complete. Tensor sizes:" << endl;
-    cout << "  Input: [" << BATCH_SIZE << ", " << INPUT_CHANNELS << ", "
+    cout << "  Input: [" << BATCH_SIZE << ", " << IN_CHANNELS << ", "
          << INPUT_DEPTH << ", " << INPUT_HEIGHT << ", " << INPUT_WIDTH << "]" << endl;
     cout << "  Output: [" << BATCH_SIZE << ", " << OUTPUT_CHANNELS << ", "
          << INPUT_DEPTH << ", " << INPUT_HEIGHT << ", " << INPUT_WIDTH << "]" << endl;
@@ -35,7 +35,7 @@ int main() {
     // Initialize input data with random values
     cout << "Initializing input data with random values..." << endl;
     for (int b = 0; b < BATCH_SIZE; b++) {
-        for (int c = 0; c < INPUT_CHANNELS; c++) {
+        for (int c = 0; c < IN_CHANNELS; c++) {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
@@ -51,7 +51,7 @@ int main() {
     cout << "Saving input data to 'input_data.txt'..." << endl;
     ofstream input_file("input_data.txt");
     for (int b = 0; b < BATCH_SIZE; b++) {
-        for (int c = 0; c < INPUT_CHANNELS; c++) {
+        for (int c = 0; c < IN_CHANNELS; c++) {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
@@ -175,8 +175,8 @@ int main() {
     // Test input convolution
     static float test_input_conv_out_main[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     static float test_input_conv_out_skip[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    cout << "Testing InputDoubleConv3D..." << endl;
-    InputDoubleConv3D(input, input_conv1_weight, input_conv1_gamma, input_conv1_beta,
+    cout << "Testing DoubleConv3D2Head..." << endl;
+    DoubleConv3D2Head<IN_CHANNELS, F_MAP_h, F_MAP_0>(input, input_conv1_weight, input_conv1_gamma, input_conv1_beta,
                       input_conv2_weight, input_conv2_gamma, input_conv2_beta,
                       test_input_conv_out_main, test_input_conv_out_skip);
 
@@ -201,7 +201,7 @@ int main() {
             }
         }
     }
-    cout << "  InputDoubleConv3D output range: [" << input_conv_min << ", " << input_conv_max << "]" << endl;
+    cout << "  DoubleConv3D2Head output range: [" << input_conv_min << ", " << input_conv_max << "]" << endl;
 
     // Validation checks
     bool test_passed = true;

@@ -231,7 +231,84 @@ void Conv3d(float kernel[T_OUT_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KER
     }
 }
 
+template<int T_INPUT_CHANNELS, int T_MID_CHANNELS, int T_OUT_CHANNELS>
+void DoubleConv3D(float input[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                  float kernel1[T_MID_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+                  float gamma1[T_INPUT_CHANNELS],
+                  float beta1[T_INPUT_CHANNELS],
+                  float kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+                  float gamma2[T_MID_CHANNELS],
+                  float beta2[T_MID_CHANNELS],
+                  float output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+    // buffers
+    float gn1_out[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=gn1_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
+    float conv1_out[BATCH_SIZE][T_MID_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=conv1_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
+
+    float gn2_out[BATCH_SIZE][T_MID_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=gn2_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
+
+    GroupNorm3D<T_INPUT_CHANNELS>(input, gamma1, beta1, gn1_out);
+    Conv3D<T_INPUT_CHANNELS, T_MID_CHANNELS>(kernel1, gn1_out, conv1_out);
+    GroupNorm3D<T_MID_CHANNELS>(conv1_out, gamma2, beta2, gn2_out);
+    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS>(kernel2, gn2_out, output);
+}
+
+template<int T_INPUT_CHANNELS, int T_MID_CHANNELS, int T_OUT_CHANNELS>
+void DoubleConv3D2Head(float input[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                       float kernel1[T_MID_CHANNELS][T_INPUT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+                       float gamma1[T_INPUT_CHANNELS],
+                       float beta1[T_INPUT_CHANNELS],
+                       float kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+                       float gamma2[T_MID_CHANNELS],
+                       float beta2[T_MID_CHANNELS],
+                       float output1[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                       float output2[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]) {
+    // buffers
+    float gn1_out[BATCH_SIZE][T_INPUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=gn1_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
+
+    float conv1_out[BATCH_SIZE][T_MID_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=conv1_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
+
+    float gn2_out[BATCH_SIZE][T_MID_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=gn2_out depth=10 type=fifo
+    #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
+
+    // Temporary output buffer
+    float temp_output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS stream variable=temp_output depth=10 type=fifo
+    #pragma HLS bind_storage variable=temp_output type=ram_t2p impl=bram
+
+    GroupNorm3D<T_INPUT_CHANNELS>(input, gamma1, beta1, gn1_out);
+    Conv3D<T_INPUT_CHANNELS, T_MID_CHANNELS>(kernel1, gn1_out, conv1_out);
+    GroupNorm3D<T_MID_CHANNELS>(conv1_out, gamma2, beta2, gn2_out);
+    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS>(kernel2, gn2_out, temp_output);
+
+    // Duplicate output to both streams for skip connection
+    // TODO: Review here
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        for (int ch = 0; ch < T_OUT_CHANNELS; ch++) {
+            for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+                for (int height = 0; height < INPUT_HEIGHT; height++) {
+                    #pragma HLS pipeline II=1
+                    for (int width = 0; width < INPUT_WIDTH; width++) {
+                        float value = temp_output[batch][ch][depth][height][width];
+                        output1[batch][ch][depth][height][width] = value;
+                        output2[batch][ch][depth][height][width] = value;
+                    }
+                }
+            }
+        }
+    }
+}
 
 // Top-level UNet3D function
 void UNet3DReduced(

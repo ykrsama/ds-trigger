@@ -1,4 +1,4 @@
-#include "doubleconv_component.h"
+#include "input_doubleconv.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
@@ -81,10 +81,10 @@ int main() {
         }
     }
 
-    std::cout << "Starting DoubleConv Component test..." << std::endl;
+    std::cout << "Starting Input DoubleConv test..." << std::endl;
 
     // Call the top function
-    DoubleConvComponent(
+    InputDoubleConv(
         input,
         kernel1,
         gamma1,
@@ -96,7 +96,7 @@ int main() {
         output2
     );
 
-    std::cout << "DoubleConv Component test completed successfully!" << std::endl;
+    std::cout << "Input DoubleConv test completed successfully!" << std::endl;
 
     // Print some sample outputs for verification
     std::cout << "Sample output1[0][0][0][0][0]: " << output1[0][0][0][0][0] << std::endl;

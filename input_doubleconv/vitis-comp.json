@@ -1,0 +1,12 @@
+{
+  "name": "input_doubleconv",
+  "type": "HLS",
+  "configuration": {
+    "componentType": "HLS",
+    "configFiles": [
+      "hls_config.cfg"
+    ],
+    "work_dir": "input_doubleconv"
+  },
+  "template": "empty_hls_component"
+}

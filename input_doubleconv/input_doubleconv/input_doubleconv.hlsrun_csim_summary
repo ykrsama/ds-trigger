@@ -1,0 +1,159 @@
+<ENTRY>
+{
+ "thisFile": "C:/Users\\User\\Documents\\ds-trigger\\input_doubleconv\\input_doubleconv\\input_doubleconv.hlsrun_csim_summary",
+ "connectId": "",
+ "serverToken": "",
+ "timestamp": "0"
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "12/04/25 13:36:14",
+ "timestampMillis": "1764826574204",
+ "buildStep": {
+  "cmdId": "5772efab-1c54-46d0-be4c-936c06e23817",
+  "name": "vitis-run",
+  "logFile": "C:/Users\\User\\Documents\\ds-trigger\\input_doubleconv\\input_doubleconv\\logs\\input_doubleconv.steps.log",
+  "commandLine": "C:/Xilinx/Vitis/2024.2/bin/unwrapped/win64.o/vitis-run.exe  --mode hls --csim --config C:\\Users\\User\\Documents\\ds-trigger\\input_doubleconv\\hls_config.cfg --work_dir input_doubleconv ",
+  "args": [
+   "--mode",
+   "hls",
+   "--csim",
+   "--config",
+   "C:\\Users\\User\\Documents\\ds-trigger\\input_doubleconv\\hls_config.cfg",
+   "--work_dir",
+   "input_doubleconv"
+  ],
+  "iniFiles": [],
+  "cwd": "C:\\Users\\User\\Documents\\ds-trigger\\input_doubleconv"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "12/04/25 13:36:14",
+ "timestampMillis": "1764826574204",
+ "status": {
+  "cmdId": "5772efab-1c54-46d0-be4c-936c06e23817",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_FlowMetaData",
+ "dateTimestamp": "12/04/25 13:36:18",
+ "timestampMillis": "1764826578228",
+ "buildSummary": {
+  "hardwarePlatform": "",
+  "hardwareDsa": "",
+  "platformDirectory": "",
+  "runtime": "",
+  "systemConfig": "",
+  "flow": "BF_RUN",
+  "target": "TT_HLS_C_SIM",
+  "kernels": [
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "",
+     "file": "",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [
+     "C:/Users\\User\\Documents\\ds-trigger\\template\\unet3d_reduced.cpp",
+     "C:/Users\\User\\Documents\\ds-trigger\\template\\unet3d_reduced.h",
+     "C:/Users\\User\\Documents\\ds-trigger\\input_doubleconv\\input_doubleconv.cpp",
+     "C:/Users\\User\\Documents\\ds-trigger\\input_doubleconv\\input_doubleconv.h"
+    ],
+    "psSources": [],
+    "cuNames": [],
+    "type": "HLS",
+    "frequency": 0,
+    "freqUnits": ""
+   }
+  ],
+  "toolVersion": "2024.2"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "12/04/25 13:36:18",
+ "timestampMillis": "1764826578229",
+ "buildStep": {
+  "cmdId": "4c1de5a3-6c22-4b84-8617-f41c2a3242a7",
+  "name": "",
+  "logFile": "C:/Users\\User\\Documents\\ds-trigger\\input_doubleconv\\input_doubleconv\\hls\\hls.log",
+  "commandLine": "",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "C:\\Users\\User\\Documents\\ds-trigger\\input_doubleconv"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "12/04/25 13:36:18",
+ "timestampMillis": "1764826578229",
+ "status": {
+  "cmdId": "4c1de5a3-6c22-4b84-8617-f41c2a3242a7",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "12/04/25 13:36:28",
+ "timestampMillis": "1764826588401",
+ "status": {
+  "cmdId": "4c1de5a3-6c22-4b84-8617-f41c2a3242a7",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "12/04/25 13:36:28",
+ "timestampMillis": "1764826588527",
+ "status": {
+  "cmdId": "5772efab-1c54-46d0-be4c-936c06e23817",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "12/04/25 13:36:28",
+ "timestampMillis": "1764826588528",
+ "report": {
+  "path": "",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "12/04/25 13:36:28",
+ "timestampMillis": "1764826588528",
+ "report": {
+  "path": "",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>

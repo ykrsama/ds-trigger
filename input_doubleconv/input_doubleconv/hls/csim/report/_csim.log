@@ -1,6 +1,7 @@
 INFO: [SIM 2] *************** CSIM start ***************
 INFO: [SIM 4] CSIM will launch CLANG as the compiler.
    Compiling ../../../../testbench.cpp in debug mode
+   Compiling ../../../../../template/unet3d_reduced.cpp in debug mode
    Compiling ../../../../input_doubleconv.cpp in debug mode
    Generating csim.exe
 Starting Input DoubleConv test...

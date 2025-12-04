@@ -17,13 +17,13 @@ This repository contains a Xilinx Vitis HLS implementation of a 3D U-Net with re
   - `encoder_maxpool/encoder_maxpool.h`: Network configuration and function declarations
   - `encoder_maxpool/testbench.cpp`: HLS testbench
 - HLS Component - complete U-Net:
-  - `hls_component/hls_config.cfg`: HLS project configuration
-  - `hls_component/unet3d_reduced.cpp` - Main U-Net implementation. Top function is `UNet3DReduced`
-  - `hls_component/unet3d_reduced.h` - Network configuration and function declarations
-  - `hls_component/testbench.cpp` - HLS testbench
-  - `hls_component/unet_weights_data.cpp` - Converted weight data (auto-generated)
-  - `hls_component/unet_weights.h` - Weight declarations
-  - `hls_component/model_parameter.h` - Constant defines
+  - `unet3d_reduced/hls_config.cfg`: HLS project configuration
+  - `unet3d_reduced/unet3d_reduced.cpp` - Main U-Net implementation. Top function is `UNet3DReduced`
+  - `unet3d_reduced/unet3d_reduced.h` - Network configuration and function declarations
+  - `unet3d_reduced/testbench.cpp` - HLS testbench
+  - `unet3d_reduced/unet_weights_data.cpp` - Converted weight data (auto-generated)
+  - `unet3d_reduced/unet_weights.h` - Weight declarations
+  - `unet3d_reduced/model_parameter.h` - Constant defines
 
 ## Architecture
 

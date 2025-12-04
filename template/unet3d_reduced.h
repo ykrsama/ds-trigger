@@ -10,7 +10,7 @@
 #include <hls_vector.h>
 #include <math.h>
 #include <stdint.h>
-#include "model_parameter.h"
+#include "../template/model_parameter.h"
 
 // Template function declarations
 template<int T_IN_CHANNELS,

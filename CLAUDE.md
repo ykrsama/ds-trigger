@@ -7,11 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This repository contains a Xilinx Vitis HLS implementation of a 3D U-Net with reduced contraction path for efficient FPGA acceleration as part of the DarkSHINE experiment trigger system. The project converts PyTorch neural network models to HLS-optimized C++ code for FPGA deployment.
 
 ### HLS Development
-- HLS project configuration is in `hls_component/hls_config.cfg`
 - Target FPGA part: `xczu15eg-ffvb1156-2-i` (Zynq UltraScale+)
-- Top function: `UNet3DReduced`
-- Main HLS source files:
-  - `hls_component/unet3d_reduced.cpp` - Main U-Net implementation
+- HLS Component of input double conv block:
+  - `input_doubleconv/input_doubleconv.cpp`: Main implementation. Top function is `InputDoubleConv`
+  - `input_doubleconv/input_doubleconv.h`: Network configuration and function declarations
+- HLS Component of complete U-Net:
+  - `hls_component/hls_config.cfg`: HLS project configuration
+  - `hls_component/unet3d_reduced.cpp` - Main U-Net implementation. Top function is `UNet3DReduced`
   - `hls_component/unet3d_reduced.h` - Network configuration and function declarations
   - `hls_component/testbench.cpp` - HLS testbench
   - `hls_component/unet_weights_data.cpp` - Converted weight data (auto-generated)

@@ -10,7 +10,6 @@
 #include <hls_vector.h>
 #include <math.h>
 #include <stdint.h>
-#include "unet_weights.h"
 #include "model_parameter.h"
 
 // Template function declarations

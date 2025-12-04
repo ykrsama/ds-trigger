@@ -1,4 +1,5 @@
 #include "unet3d_reduced.h"
+#include "unet_weights.h"
 #include <iostream>
 #include <fstream>
 #include <random>

@@ -1,0 +1,12 @@
+{
+  "name": "encoder_doubleconv",
+  "type": "HLS",
+  "configuration": {
+    "componentType": "HLS",
+    "configFiles": [
+      "hls_config.cfg"
+    ],
+    "work_dir": "EncoderDoubleConv"
+  },
+  "template": "empty_hls_component"
+}

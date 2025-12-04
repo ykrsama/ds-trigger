@@ -1,0 +1,12 @@
+{
+  "name": "encoder_maxpool",
+  "type": "HLS",
+  "configuration": {
+    "componentType": "HLS",
+    "configFiles": [
+      "hls_config.cfg"
+    ],
+    "work_dir": "encoder_maxpool"
+  },
+  "template": "empty_hls_component"
+}

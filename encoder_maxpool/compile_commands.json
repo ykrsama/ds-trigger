@@ -1,0 +1,40 @@
+[
+  {
+    "directory": "C:\\Users\\User\\Documents\\ds-trigger\\encoder_maxpool",
+    "arguments": [
+      "C:\\Xilinx\\Vitis\\2024.2\\vcxx\\libexec\\clang++.exe",
+      "--sysroot=C:\\Xilinx\\Vitis\\2024.2\\tps\\mingw\\10.0.0\\win64.o\\nt",
+      "-fhls",
+      "-hls-syn-headers-dir=C:\\Xilinx\\Vitis\\2024.2\\common\\technology\\autopilot",
+      "-fhlstoplevel=EncoderMaxPool",
+      "-c",
+      "C:\\Users\\User\\Documents\\ds-trigger\\template\\unet3d_reduced.cpp"
+    ],
+    "file": "C:\\Users\\User\\Documents\\ds-trigger\\template\\unet3d_reduced.cpp"
+  },
+  {
+    "directory": "C:\\Users\\User\\Documents\\ds-trigger\\encoder_maxpool",
+    "arguments": [
+      "C:\\Xilinx\\Vitis\\2024.2\\vcxx\\libexec\\clang++.exe",
+      "--sysroot=C:\\Xilinx\\Vitis\\2024.2\\tps\\mingw\\10.0.0\\win64.o\\nt",
+      "-fhls",
+      "-hls-syn-headers-dir=C:\\Xilinx\\Vitis\\2024.2\\common\\technology\\autopilot",
+      "-fhlstoplevel=EncoderMaxPool",
+      "-c",
+      "C:\\Users\\User\\Documents\\ds-trigger\\encoder_maxpool\\encoder_maxpool.cpp"
+    ],
+    "file": "C:\\Users\\User\\Documents\\ds-trigger\\encoder_maxpool\\encoder_maxpool.cpp"
+  },
+  {
+    "directory": "C:\\Users\\User\\Documents\\ds-trigger\\encoder_maxpool",
+    "arguments": [
+      "C:\\Xilinx\\Vitis\\2024.2\\vcxx\\libexec\\clang++.exe",
+      "--sysroot=C:\\Xilinx\\Vitis\\2024.2\\tps\\mingw\\10.0.0\\win64.o\\nt",
+      "-fhls-tb",
+      "-hls-sim-headers-dir=C:\\Xilinx\\Vitis\\2024.2\\include",
+      "-c",
+      "C:\\Users\\User\\Documents\\ds-trigger\\encoder_maxpool\\testbench.cpp"
+    ],
+    "file": "C:\\Users\\User\\Documents\\ds-trigger\\encoder_maxpool\\testbench.cpp"
+  }
+]

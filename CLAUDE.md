@@ -8,10 +8,15 @@ This repository contains a Xilinx Vitis HLS implementation of a 3D U-Net with re
 
 ### HLS Development
 - Target FPGA part: `xczu15eg-ffvb1156-2-i` (Zynq UltraScale+)
-- HLS Component of input double conv block:
+- HLS Component - input double conv block:
   - `input_doubleconv/input_doubleconv.cpp`: Main implementation. Top function is `InputDoubleConv`
   - `input_doubleconv/input_doubleconv.h`: Network configuration and function declarations
-- HLS Component of complete U-Net:
+  - `input_doubleconv/testbench.cpp`: HLS testbench
+- HLS Component - encoder maxpool:
+  - `encoder_maxpool/encoder_maxpool.cpp`: Main implementation. Top function is `EncoderMaxPool`
+  - `encoder_maxpool/encoder_maxpool.h`: Network configuration and function declarations
+  - `encoder_maxpool/testbench.cpp`: HLS testbench
+- HLS Component - complete U-Net:
   - `hls_component/hls_config.cfg`: HLS project configuration
   - `hls_component/unet3d_reduced.cpp` - Main U-Net implementation. Top function is `UNet3DReduced`
   - `hls_component/unet3d_reduced.h` - Network configuration and function declarations

@@ -1,12 +1,11 @@
 {
-  "name": "hls_component",
+  "name": "unet3d_reduced",
   "type": "HLS",
   "configuration": {
     "componentType": "HLS",
     "configFiles": [
       "hls_config.cfg"
     ],
-    "work_dir": "hls_component"
-  },
-  "template": "empty_hls_component"
+    "work_dir": "unet3d_reduced"
+  }
 }

@@ -1,5 +1,5 @@
-#ifndef DOUBLECONV_COMPONENT_H
-#define DOUBLECONV_COMPONENT_H
+#ifndef INPUT_DOUBLECONV_H
+#define INPUT_DOUBLECONV_H
 
 #include <algorithm>
 #include <ap_axi_sdata.h>
@@ -31,4 +31,4 @@ void InputDoubleConv(
     float output2[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 );
 
-#endif // DOUBLECONV_COMPONENT_H
+#endif // INPUT_DOUBLECONV_H

@@ -22,3 +22,6 @@ _ide/.wsdata
 
 block_checkpoints
 .idea
+.cache
+.autopilot
+.debug

@@ -243,10 +243,18 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                                                 #pragma HLS unroll
                                                 float window_val = window_buffer[batch][in_ch][kd][kh][kw];
 
+                                                float partial_sums[T_OUT_CHANNELS];
+                                                #pragma HLS array_partition variable=partial_sums complete dim=1
+
                                                 for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
                                                     #pragma HLS unroll factor=2
                                                     float kernel_val = kernel[out_ch][in_ch][kd][kh][kw];
-                                                    accum[out_ch] += window_val * kernel_val;
+                                                    partial_sums[out_ch] = window_val * kernel_val;
+                                                }
+
+                                                for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
+                                                    #pragma HLS unroll factor=2
+                                                    accum[out_ch] += partial_sums[out_ch];
                                                 }
                                             }
                                         }

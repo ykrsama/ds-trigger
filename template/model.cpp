@@ -117,7 +117,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
 
     // fill input
     float padded_input[BATCH_SIZE][T_IN_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
-    #pragma HLS array_partition variable=padded_input complete dim=2
+    #pragma HLS stream variable=padded_input type=fifo
     #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
     // Filling operation with better memory access patterns
@@ -125,9 +125,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
         PaddingDepth: for (int depth = 0; depth < PADDED_DEPTH; depth++) {
             PaddingHeight: for (int height = 0; height < PADDED_HEIGHT; height++) {
                 PaddingWidth: for (int width = 0; width < PADDED_WIDTH; width++) {
-                    #pragma HLS pipeline II=1
                     PaddingChan: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                        #pragma HLS unroll
                         float pad_value = (float) 0.000000;
                         int orig_depth = depth - CONV_PADDING;
                         int orig_height = height - CONV_PADDING;

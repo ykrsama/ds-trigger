@@ -145,32 +145,36 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
         }
     }
 
-    // Buffer definitions for convolution
+    // Buffer definitions for convolution - optimized memory interfaces
     float cube_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
     #pragma HLS array_partition variable=cube_buffer cyclic factor=T_IN_CHANNELS dim=2
-    #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
+    #pragma HLS array_partition variable=cube_buffer complete dim=3
+    #pragma HLS bind_storage variable=cube_buffer type=ram_t2p impl=bram
 
     float line_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
     #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS array_partition variable=line_buffer complete dim=3
     #pragma HLS array_partition variable=line_buffer complete dim=4
-    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
+    #pragma HLS bind_storage variable=line_buffer type=ram_t2p impl=bram
 
     float window_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
     #pragma HLS array_partition variable=window_buffer complete dim=2
     #pragma HLS array_partition variable=window_buffer complete dim=3
     #pragma HLS array_partition variable=window_buffer complete dim=4
     #pragma HLS array_partition variable=window_buffer complete dim=5
-    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
+    #pragma HLS bind_storage variable=window_buffer type=ram_t2p impl=bram
 
     // Convolution computation with enhanced parallelization
     ConvBatch: for (int batch = 0; batch < BATCH_SIZE; batch++) {
         ConvDepth: for (int depth = 0; depth < PADDED_DEPTH; depth++) {
             ConvHeight: for (int height = 0; height < PADDED_HEIGHT; height++) {
+                #pragma HLS pipeline II=2
                 ConvWidth: for (int width = 0; width < PADDED_WIDTH; width++) {
+                    #pragma HLS pipeline II=1
 
                     // Update cube buffer - parallel channel processing
                     UpdateCubeBuffer: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                        #pragma HLS pipeline II=1
                         #pragma HLS unroll factor=2
                         for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
                             #pragma HLS unroll
@@ -184,6 +188,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                     if (depth >= CONV_KERNEL - 1) {
                         // Update line buffer - parallel processing
                         UpdateLineBuffer: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                            #pragma HLS pipeline II=1
                             #pragma HLS unroll factor=2
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
                                 #pragma HLS unroll
@@ -200,6 +205,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                         if (height >= CONV_KERNEL - 1) {
                             // Update window buffer
                             UpdateWindowBuffer: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                                #pragma HLS pipeline II=1
                                 #pragma HLS unroll factor=2
                                 for (int kd = 0; kd < CONV_KERNEL; kd++) {
                                     #pragma HLS unroll
@@ -226,7 +232,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                                 #pragma HLS array_partition variable=accum complete dim=1
                                 #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
 
-                                ConvKernel_ReLU: for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
+                                ConvKernelReLU: for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
                                     #pragma HLS pipeline II=1
                                     accum[out_ch] = (float)0.000000;
 

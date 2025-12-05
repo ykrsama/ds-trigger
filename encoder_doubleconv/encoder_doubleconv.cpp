@@ -12,29 +12,14 @@ void EncoderDoubleConv(
 ) {
     #pragma HLS interface s_axilite port=return
 
-    #pragma HLS interface bram port=input
-    #pragma HLS bind_storage variable=input type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=kernel1
-    #pragma HLS bind_storage variable=kernel1 type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=gamma1
-    #pragma HLS bind_storage variable=gamma1 type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=beta1
-    #pragma HLS bind_storage variable=beta1 type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=kernel2
-    #pragma HLS bind_storage variable=kernel2 type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=gamma2
-    #pragma HLS bind_storage variable=gamma2 type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=beta2
-    #pragma HLS bind_storage variable=beta2 type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=output
-    #pragma HLS bind_storage variable=output type=ram_t2p impl=bram
+    #pragma HLS interface bram port=input storage_type=ram_t2p
+    #pragma HLS interface bram port=kernel1 storage_type=ram_t2p
+    #pragma HLS interface bram port=gamma1 storage_type=ram_t2p
+    #pragma HLS interface bram port=beta1 storage_type=ram_t2p
+    #pragma HLS interface bram port=kernel2 storage_type=ram_t2p
+    #pragma HLS interface bram port=gamma2 storage_type=ram_t2p
+    #pragma HLS interface bram port=beta2 storage_type=ram_t2p
+    #pragma HLS interface bram port=output storage_type=ram_t2p
 
     #pragma HLS dataflow
 

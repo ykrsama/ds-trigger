@@ -103,10 +103,12 @@ template<int T_IN_CHANNELS,
 void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
             float input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
             float output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
-    #pragma HLS array_partition variable=kernel cyclic factor=T_IN_CHANNELS dim=2
-    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
-    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
-    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS array_partition variable=kernel complete dim=2
+    #pragma HLS array_partition variable=kernel complete dim=3
+    #pragma HLS array_partition variable=kernel complete dim=4
+    #pragma HLS array_partition variable=kernel complete dim=5
+    #pragma HLS array_partition variable=input cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=output cyclic factor=T_OUT_CHANNELS dim=2
 
     // padded size
     const int PADDED_DEPTH = T_INPUT_DEPTH + 2 * CONV_PADDING;
@@ -115,25 +117,27 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
 
     // fill input
     float padded_input[BATCH_SIZE][T_IN_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
-    #pragma HLS stream variable=padded_input depth=10 type=fifo
+    #pragma HLS array_partition variable=padded_input cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
-    // Filling operation
+    // Filling operation with better memory access patterns
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int depth = 0; depth < PADDED_DEPTH; depth++) {
             for (int height = 0; height < PADDED_HEIGHT; height++) {
                 for (int width = 0; width < PADDED_WIDTH; width++) {
+                    #pragma HLS pipeline II=1
                     for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                        #pragma HLS unroll factor=2
                         float pad_value = (float) 0.000000;
                         int orig_depth = depth - CONV_PADDING;
                         int orig_height = height - CONV_PADDING;
                         int orig_width = width - CONV_PADDING;
 
-                        if (orig_depth >= 0 && orig_depth < T_INPUT_DEPTH &&
-                            orig_height >= 0 && orig_height < T_INPUT_HEIGHT &&
-                            orig_width >= 0 && orig_width < T_INPUT_WIDTH) {
-                            pad_value = input[batch][in_ch][orig_depth][orig_height][orig_width];
-                        }
+                        bool valid_pixel = (orig_depth >= 0 && orig_depth < T_INPUT_DEPTH &&
+                                          orig_height >= 0 && orig_height < T_INPUT_HEIGHT &&
+                                          orig_width >= 0 && orig_width < T_INPUT_WIDTH);
+
+                        pad_value = valid_pixel ? input[batch][in_ch][orig_depth][orig_height][orig_width] : (float)0.000000;
                         padded_input[batch][in_ch][depth][height][width] = pad_value;
                     }
                 }
@@ -143,27 +147,31 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
 
     // Buffer definitions for convolution
     float cube_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS array_partition variable=cube_buffer cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
 
     float line_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
+    #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
     float window_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-    #pragma HLS array_partition variable=window_buffer cyclic factor=T_IN_CHANNELS dim=2
-    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=3
-    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=4
-    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=5
+    #pragma HLS array_partition variable=window_buffer complete dim=2
+    #pragma HLS array_partition variable=window_buffer complete dim=3
+    #pragma HLS array_partition variable=window_buffer complete dim=4
+    #pragma HLS array_partition variable=window_buffer complete dim=5
     #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
 
-    // Convolution computation
+    // Convolution computation with enhanced parallelization
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int depth = 0; depth < PADDED_DEPTH; depth++) {
             for (int height = 0; height < PADDED_HEIGHT; height++) {
                 for (int width = 0; width < PADDED_WIDTH; width++) {
 
-                    // Update cube buffer
+                    // Update cube buffer - parallel channel processing
                     for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                        #pragma HLS unroll factor=2
                         for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
+                            #pragma HLS unroll
                             cube_buffer[batch][in_ch][kd][height][width] =
                                 cube_buffer[batch][in_ch][kd + 1][height][width];
                         }
@@ -172,10 +180,13 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                     }
 
                     if (depth >= CONV_KERNEL - 1) {
-                        // Update line buffer
+                        // Update line buffer - parallel processing
                         for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                            #pragma HLS unroll factor=2
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                #pragma HLS unroll
                                 for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                                    #pragma HLS unroll
                                     line_buffer[batch][in_ch][kd][kh][width] =
                                         line_buffer[batch][in_ch][kd][kh + 1][width];
                                 }
@@ -185,11 +196,15 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                         }
 
                         if (height >= CONV_KERNEL - 1) {
-                            // Update window buffer
+                            // Update window buffer - fully parallelized
                             for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                                #pragma HLS unroll factor=2
                                 for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    #pragma HLS unroll
                                     for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                        #pragma HLS unroll
                                         for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                            #pragma HLS unroll
                                             window_buffer[batch][in_ch][kd][kh][kw] =
                                                 window_buffer[batch][in_ch][kd][kh][kw + 1];
                                         }
@@ -199,36 +214,50 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                                 }
                             }
 
-                            // Convolution computation
+                            // Convolution computation with enhanced parallelization
                             if (width >= CONV_KERNEL - 1 &&
                                 (depth) % CONV_STRIDE == 0 &&
                                 (height) % CONV_STRIDE == 0 &&
                                 (width) % CONV_STRIDE == 0) {
 
                                 float accum[T_OUT_CHANNELS];
+                                #pragma HLS array_partition variable=accum complete dim=1
                                 #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
 
+                                // Parallel accumulation across output channels
                                 for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
-                                    #pragma HLS pipeline II=1
+                                    #pragma HLS unroll factor=2
                                     accum[out_ch] = (float)0.000000;
+                                }
 
-                                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                                    float window_val = window_buffer[batch][in_ch][kd][kh][kw];
+                                // Optimized convolution kernel computation
+                                for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                                    #pragma HLS pipeline II=1
+                                    for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                        #pragma HLS unroll
+                                        for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                            #pragma HLS unroll
+                                            for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                #pragma HLS unroll
+                                                float window_val = window_buffer[batch][in_ch][kd][kh][kw];
+
+                                                for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
+                                                    #pragma HLS unroll factor=2
                                                     float kernel_val = kernel[out_ch][in_ch][kd][kh][kw];
                                                     accum[out_ch] += window_val * kernel_val;
                                                 }
                                             }
                                         }
                                     }
+                                }
 
-                                    int out_depth = (depth - CONV_KERNEL) / CONV_STRIDE + 1;
-                                    int out_height = (height - CONV_KERNEL) / CONV_STRIDE + 1;
-                                    int out_width = (width - CONV_KERNEL) / CONV_STRIDE + 1;
+                                int out_depth = (depth - CONV_KERNEL) / CONV_STRIDE + 1;
+                                int out_height = (height - CONV_KERNEL) / CONV_STRIDE + 1;
+                                int out_width = (width - CONV_KERNEL) / CONV_STRIDE + 1;
 
-                                    // ReLU activation
+                                // Parallel ReLU activation and output writing
+                                for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
+                                    #pragma HLS unroll factor=2
                                     float output_value = accum[out_ch];
                                     bool is_positive = output_value > (float)0.000000;
                                     float relu_output = is_positive ? output_value : (float)0.000000;

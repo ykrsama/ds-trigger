@@ -8,6 +8,10 @@ This repository contains a Xilinx Vitis HLS implementation of a 3D U-Net with re
 
 ### HLS Development
 - Target FPGA part: `xczu15eg-ffvb1156-2-i` (Zynq UltraScale+)
+- Template model function:
+  - `template/model.cpp`: Template function of model components
+  - `template/model.h`: Header with network configuration and function declarations
+  - `template/model_parameter.h`: Constant defines for model parameters
 - HLS Component - input double conv block:
   - `input_doubleconv/input_doubleconv.cpp`: Main implementation. Top function is `InputDoubleConv`
   - `input_doubleconv/input_doubleconv.h`: Network configuration and function declarations
@@ -16,6 +20,10 @@ This repository contains a Xilinx Vitis HLS implementation of a 3D U-Net with re
   - `encoder_maxpool/encoder_maxpool.cpp`: Main implementation. Top function is `EncoderMaxPool`
   - `encoder_maxpool/encoder_maxpool.h`: Network configuration and function declarations
   - `encoder_maxpool/testbench.cpp`: HLS testbench
+- HLS Component - encoder double conv block:
+  - `encoder_doubleconv/encoder_doubleconv.cpp`: Main implementation. Top function is `EncoderDoubleConv`
+  - `encoder_doubleconv/encoder_doubleconv.h`: Network configuration and function declarations
+  - `encoder_doubleconv/testbench.cpp`: HLS testbench
 - HLS Component - complete U-Net:
   - `unet3d_reduced/hls_config.cfg`: HLS project configuration
   - `unet3d_reduced/unet3d_reduced.cpp` - Main U-Net implementation. Top function is `UNet3DReduced`
@@ -63,8 +71,11 @@ flowchart LR
 - Pooling: 2x2x2 max pooling, stride=2
 
 ### Code Structure
-- `hls_component/` - Main HLS implementation and generated project files
-- `hls_example/` - Template and example HLS code
+- `template/` - Template files for model structure
+- `input_doubleconv/` - HLS component of input double convolution block
+- `encoder_maxpool/` - HLS component of encoder max pooling block
+- `encoder_doubleconv/` - HLS component of encoder double convolution block
+- `unet3d_reduced/` - HLS component of the complete reduced U-Net
 - `convert_weights.py` - PyTorch to HLS weight conversion pipeline
 - `analyze_checkpoints.py` - Utility for examining PyTorch model checkpoints
 

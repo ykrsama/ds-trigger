@@ -8,6 +8,19 @@
       "-hls-syn-headers-dir=C:\\Xilinx\\Vitis\\2024.2\\common\\technology\\autopilot",
       "-fhlstoplevel=EncoderMaxPool",
       "-c",
+      "C:\\Users\\User\\Documents\\ds-trigger\\template\\model.cpp"
+    ],
+    "file": "C:\\Users\\User\\Documents\\ds-trigger\\template\\model.cpp"
+  },
+  {
+    "directory": "C:\\Users\\User\\Documents\\ds-trigger\\encoder_maxpool",
+    "arguments": [
+      "C:\\Xilinx\\Vitis\\2024.2\\vcxx\\libexec\\clang++.exe",
+      "--sysroot=C:\\Xilinx\\Vitis\\2024.2\\tps\\mingw\\10.0.0\\win64.o\\nt",
+      "-fhls",
+      "-hls-syn-headers-dir=C:\\Xilinx\\Vitis\\2024.2\\common\\technology\\autopilot",
+      "-fhlstoplevel=EncoderMaxPool",
+      "-c",
       "C:\\Users\\User\\Documents\\ds-trigger\\template\\unet3d_reduced.cpp"
     ],
     "file": "C:\\Users\\User\\Documents\\ds-trigger\\template\\unet3d_reduced.cpp"

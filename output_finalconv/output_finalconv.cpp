@@ -1,6 +1,6 @@
 #include "output_finalconv.h"
 
-void OutputFinalConv1x1(
+void OutputFinalConv(
     float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float kernel[OUT_CHANNELS][F_MAP_0][1][1][1],
     float bias[OUT_CHANNELS],

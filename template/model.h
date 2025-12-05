@@ -1,5 +1,5 @@
-#ifndef UNET3D_REDUCED_H
-#define UNET3D_REDUCED_H
+#ifndef MODEL_H
+#define MODEL_H
 
 #include <ap_axi_sdata.h>
 #include <ap_fixed.h>
@@ -84,4 +84,4 @@ void Sigmoid3D(float input[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][
                float output[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 
 
-#endif // UNET3D_REDUCED_H
+#endif // MODEL_H

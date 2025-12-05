@@ -198,7 +198,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                         }
 
                         if (height >= CONV_KERNEL - 1) {
-                            // Update window buffer - fully parallelized
+                            // Update window buffer
                             UpdateWindowBuffer: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                                 #pragma HLS unroll factor=2
                                 for (int kd = 0; kd < CONV_KERNEL; kd++) {
@@ -216,7 +216,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                                 }
                             }
 
-                            // Convolution computation with enhanced parallelization
+                            // Convolution computation
                             if (width >= CONV_KERNEL - 1 &&
                                 (depth) % CONV_STRIDE == 0 &&
                                 (height) % CONV_STRIDE == 0 &&
@@ -226,40 +226,27 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                                 #pragma HLS array_partition variable=accum complete dim=1
                                 #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
 
-                                // Parallel accumulation across output channels
-                                AccumInit: for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
-                                    #pragma HLS unroll factor=2
-                                    accum[out_ch] = (float)0.000000;
-                                }
-
-                                // Optimized convolution kernel computation
-                                ConvKernel: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                                ConvKernel_ReLU: for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
                                     #pragma HLS pipeline II=1
-                                    for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                        #pragma HLS unroll
-                                        for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                            #pragma HLS unroll
-                                            for (int kw = 0; kw < CONV_KERNEL; kw++) {
-                                                #pragma HLS unroll
-                                                float window_val = window_buffer[batch][in_ch][kd][kh][kw];
+                                    accum[out_ch] = (float)0.000000;
 
-                                                for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
-                                                    #pragma HLS unroll factor=2
+                                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                                        for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                            for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                                for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                    float window_val = window_buffer[batch][in_ch][kd][kh][kw];
                                                     float kernel_val = kernel[out_ch][in_ch][kd][kh][kw];
                                                     accum[out_ch] += window_val * kernel_val;
                                                 }
                                             }
                                         }
                                     }
-                                }
 
-                                int out_depth = (depth - CONV_KERNEL) / CONV_STRIDE + 1;
-                                int out_height = (height - CONV_KERNEL) / CONV_STRIDE + 1;
-                                int out_width = (width - CONV_KERNEL) / CONV_STRIDE + 1;
+                                    int out_depth = (depth - CONV_KERNEL) / CONV_STRIDE + 1;
+                                    int out_height = (height - CONV_KERNEL) / CONV_STRIDE + 1;
+                                    int out_width = (width - CONV_KERNEL) / CONV_STRIDE + 1;
 
-                                // Parallel ReLU activation and output writing
-                                ReLU: for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
-                                    #pragma HLS unroll factor=2
+                                    // ReLU activation
                                     float output_value = accum[out_ch];
                                     bool is_positive = output_value > (float)0.000000;
                                     float relu_output = is_positive ? output_value : (float)0.000000;

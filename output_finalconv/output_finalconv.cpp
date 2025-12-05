@@ -8,17 +8,10 @@ void OutputFinalConv1x1(
 ) {
     #pragma HLS interface s_axilite port=return
 
-    #pragma HLS interface bram port=input
-    #pragma HLS bind_storage variable=input type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=kernel
-    #pragma HLS bind_storage variable=kernel type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=bias
-    #pragma HLS bind_storage variable=bias type=ram_t2p impl=bram
-
-    #pragma HLS interface bram port=output
-    #pragma HLS bind_storage variable=output type=ram_t2p impl=bram
+    #pragma HLS interface bram port=input storage_type=ram_t2p
+    #pragma HLS interface bram port=kernel storage_type=ram_t2p
+    #pragma HLS interface bram port=bias storage_type=ram_t2p
+    #pragma HLS interface bram port=output storage_type=ram_t2p
 
     #pragma HLS dataflow
 

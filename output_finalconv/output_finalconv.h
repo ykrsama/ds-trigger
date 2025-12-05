@@ -2,7 +2,6 @@
 #define OUTPUT_FINALCONV_H
 
 #include <algorithm>
-#include <ap_axi_sdata.h>
 #include <ap_fixed.h>
 #include <ap_int.h>
 #include <hls_math.h>

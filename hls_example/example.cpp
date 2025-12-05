@@ -1,7 +1,6 @@
 //-------------------------------------  crg实现例子  ------------------------------
 
 #include <algorithm>
-#include <ap_axi_sdata.h>
 #include <ap_fixed.h>
 #include <ap_int.h>
 #include <hls_math.h>

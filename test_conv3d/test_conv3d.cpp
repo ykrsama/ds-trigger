@@ -1,8 +1,8 @@
 #include "test_conv3d.h"
 
 void TestConv3D(
-    float kernel[F_MAP_0][IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    float input[BATCH_SIZE][IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    float kernel[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+    float input[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
     #pragma HLS interface s_axilite port=return
@@ -13,7 +13,7 @@ void TestConv3D(
 
     #pragma HLS dataflow
 
-    Conv3D<IN_CHANNELS, F_MAP_0, INPUT_DEPTH, INPUT_HEIGHT, INPUT_WIDTH>(
+    Conv3D<F_MAP_h, F_MAP_0>(
         kernel, input, output
     );
 }

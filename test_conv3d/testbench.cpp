@@ -5,8 +5,8 @@
 
 int main() {
     // Initialize test data
-    float kernel[F_MAP_0][IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-    float input[BATCH_SIZE][IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float kernel[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    float input[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
     float output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 
     // Seed random number generator
@@ -14,7 +14,7 @@ int main() {
 
     // Initialize input with random values
     for (int b = 0; b < BATCH_SIZE; b++) {
-        for (int c = 0; c < IN_CHANNELS; c++) {
+        for (int c = 0; c < F_MAP_h; c++) {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
@@ -27,7 +27,7 @@ int main() {
 
     // Initialize kernel with small random weights
     for (int out_c = 0; out_c < F_MAP_0; out_c++) {
-        for (int in_c = 0; in_c < IN_CHANNELS; in_c++) {
+        for (int in_c = 0; in_c < F_MAP_h; in_c++) {
             for (int d = 0; d < CONV_KERNEL; d++) {
                 for (int h = 0; h < CONV_KERNEL; h++) {
                     for (int w = 0; w < CONV_KERNEL; w++) {
@@ -52,9 +52,9 @@ int main() {
     }
 
     std::cout << "Starting TestConv3D test..." << std::endl;
-    std::cout << "Input dimensions: [" << BATCH_SIZE << "][" << IN_CHANNELS << "]["
+    std::cout << "Input dimensions: [" << BATCH_SIZE << "][" << F_MAP_h << "]["
               << INPUT_DEPTH << "][" << INPUT_HEIGHT << "][" << INPUT_WIDTH << "]" << std::endl;
-    std::cout << "Kernel dimensions: [" << F_MAP_0 << "][" << IN_CHANNELS << "]["
+    std::cout << "Kernel dimensions: [" << F_MAP_0 << "][" << F_MAP_h << "]["
               << CONV_KERNEL << "][" << CONV_KERNEL << "][" << CONV_KERNEL << "]" << std::endl;
     std::cout << "Output dimensions: [" << BATCH_SIZE << "][" << F_MAP_0 << "]["
               << INPUT_DEPTH << "][" << INPUT_HEIGHT << "][" << INPUT_WIDTH << "]" << std::endl;
@@ -71,7 +71,7 @@ int main() {
 
     // Verify channel dimension change
     std::cout << "Channel dimension verification:" << std::endl;
-    std::cout << "Input channels " << IN_CHANNELS << " -> Output channels " << F_MAP_0 << std::endl;
+    std::cout << "Input channels " << F_MAP_h << " -> Output channels " << F_MAP_0 << std::endl;
 
     // Check if output is non-zero (basic sanity check)
     bool has_nonzero = false;

@@ -1,4 +1,4 @@
-#include "test_conv3d.h"
+#include "test_conv.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
@@ -51,7 +51,7 @@ int main() {
         }
     }
 
-    std::cout << "Starting TestConv3D test..." << std::endl;
+    std::cout << "Starting  TestConv test..." << std::endl;
     std::cout << "Input dimensions: [" << BATCH_SIZE << "][" << F_MAP_h << "]["
               << INPUT_DEPTH << "][" << INPUT_HEIGHT << "][" << INPUT_WIDTH << "]" << std::endl;
     std::cout << "Kernel dimensions: [" << F_MAP_0 << "][" << F_MAP_h << "]["
@@ -60,9 +60,9 @@ int main() {
               << INPUT_DEPTH << "][" << INPUT_HEIGHT << "][" << INPUT_WIDTH << "]" << std::endl;
 
     // Call the top function
-    TestConv3D(kernel, input, output);
+     TestConv(kernel, input, output);
 
-    std::cout << "TestConv3D test completed successfully!" << std::endl;
+    std::cout << " TestConv test completed successfully!" << std::endl;
 
     // Print some sample inputs and outputs for verification
     std::cout << "Sample input[0][0][0][0][0]: " << input[0][0][0][0][0] << std::endl;

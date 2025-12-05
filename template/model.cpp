@@ -556,19 +556,23 @@ void FinalConv1x1(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][1][1][1],
                   float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
                   float output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
-    #pragma HLS array_partition variable=kernel cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=kernel complete dim=2
     #pragma HLS array_partition variable=bias complete dim=1
+    #pragma HLS array_partition variable=input complete dim=2
+    #pragma HLS array_partition variable=output complete dim=2
 
+    ConvBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        ConvDepth:
         for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+            ConvHeight:
             for (int height = 0; height < INPUT_HEIGHT; height++) {
+                ConvWidth:
                 for (int width = 0; width < INPUT_WIDTH; width++) {
-                    #pragma HLS pipeline II=1
-
                     float accum[T_OUT_CHANNELS];
-                    #pragma HLS array_partition variable=accum complete dim=1
                     #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
 
+                    ConvMAC:
                     for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
                         accum[out_ch] = bias[out_ch];
 

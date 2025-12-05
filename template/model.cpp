@@ -170,10 +170,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
 
                     // Update cube buffer - parallel channel processing
                     UpdateCubeBuffer: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                        #pragma HLS pipeline II=1
-                        #pragma HLS unroll
                         for (int kd = 0; kd < CONV_KERNEL - 1; kd++) {
-                            #pragma HLS unroll
                             cube_buffer[batch][in_ch][kd][height][width] =
                                 cube_buffer[batch][in_ch][kd + 1][height][width];
                         }
@@ -184,12 +181,8 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                     if (depth >= CONV_KERNEL - 1) {
                         // Update line buffer - parallel processing
                         UpdateLineBuffer: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                            #pragma HLS pipeline II=1
-                            #pragma HLS unroll factor=2
                             for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                #pragma HLS unroll
                                 for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
-                                    #pragma HLS unroll
                                     line_buffer[batch][in_ch][kd][kh][width] =
                                         line_buffer[batch][in_ch][kd][kh + 1][width];
                                 }
@@ -201,14 +194,9 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                         if (height >= CONV_KERNEL - 1) {
                             // Update window buffer
                             UpdateWindowBuffer: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                                #pragma HLS pipeline II=1
-                                #pragma HLS unroll factor=2
                                 for (int kd = 0; kd < CONV_KERNEL; kd++) {
-                                    #pragma HLS unroll
                                     for (int kh = 0; kh < CONV_KERNEL; kh++) {
-                                        #pragma HLS unroll
                                         for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
-                                            #pragma HLS unroll
                                             window_buffer[batch][in_ch][kd][kh][kw] =
                                                 window_buffer[batch][in_ch][kd][kh][kw + 1];
                                         }

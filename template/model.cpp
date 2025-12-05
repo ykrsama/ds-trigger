@@ -118,7 +118,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
     // fill input
     float padded_input[BATCH_SIZE][T_IN_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
     #pragma HLS array_partition variable=padded_input cyclic factor=T_IN_CHANNELS dim=2
-    #pragma HLS bind_storage variable=padded_input type=ram_2p impl=lutram
+    #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
     // Filling operation with better memory access patterns
     PaddingBatch: for (int batch = 0; batch < BATCH_SIZE; batch++) {

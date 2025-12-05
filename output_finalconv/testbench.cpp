@@ -59,7 +59,7 @@ int main() {
               << INPUT_DEPTH << "][" << INPUT_HEIGHT << "][" << INPUT_WIDTH << "]" << std::endl;
 
     // Call the top function
-    OutputFinalConv1x1(input, kernel, bias, output);
+    OutputFinalConv(input, kernel, bias, output);
 
     std::cout << "Output Final Conv1x1 test completed successfully!" << std::endl;
 

@@ -1,7 +1,6 @@
 #ifndef UNET3D_REDUCED_H
 #define UNET3D_REDUCED_H
 
-#include <algorithm>
 #include <ap_axi_sdata.h>
 #include <ap_fixed.h>
 #include <ap_int.h>

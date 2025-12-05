@@ -844,3 +844,10 @@ void Conv2D(
 template void Conv2D<INPUT_DEPTH, F_MAP_h, INPUT_HEIGHT, INPUT_WIDTH>(float[F_MAP_h][INPUT_DEPTH][CONV_KERNEL][CONV_KERNEL],
                                                                       float[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
                                                                       float[BATCH_SIZE][F_MAP_h][INPUT_HEIGHT][INPUT_WIDTH]);
+
+
+// OutputPath
+template void FinalConv1x1<IN_CHANNELS, OUT_CHANNELS>(float[OUT_CHANNELS][IN_CHANNELS][1][1],
+                                                     float[OUT_CHANNELS],
+                                                     float[BATCH_SIZE][IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                                                     float[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);

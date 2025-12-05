@@ -549,60 +549,22 @@ void FinalConv1x1(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][1][1][1],
     #pragma HLS array_partition variable=kernel cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS array_partition variable=bias complete dim=1
 
-    // Buffer definitions
-    // Cube buffer for depth streaming (stores one depth slice at a time)
-    float cube_buffer[BATCH_SIZE][T_IN_CHANNELS][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
-    #pragma HLS array_partition variable=cube_buffer cyclic factor=T_IN_CHANNELS dim=2
-
-    // Line buffer for height streaming (stores one line at a time)
-    float line_buffer[BATCH_SIZE][T_IN_CHANNELS][INPUT_WIDTH];
-    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
-    #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=2
-
-    // Window buffer for width streaming (stores one pixel's all channels)
-    float window_buffer[BATCH_SIZE][T_IN_CHANNELS];
-    #pragma HLS array_partition variable=window_buffer cyclic factor=T_IN_CHANNELS dim=2
-    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
-
-    // Convolution computation
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int depth = 0; depth < INPUT_DEPTH; depth++) {
             for (int height = 0; height < INPUT_HEIGHT; height++) {
                 for (int width = 0; width < INPUT_WIDTH; width++) {
+                    #pragma HLS pipeline II=1
 
-                    // Update window buffer with current pixel
-                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                        #pragma HLS unroll
-                        window_buffer[batch][in_ch] = input[batch][in_ch][depth][height][width];
-                    }
-
-                    // Update line buffer
-                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                        #pragma HLS unroll
-                        line_buffer[batch][in_ch][width] = window_buffer[batch][in_ch];
-                    }
-
-                    // Update cube buffer
-                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                        #pragma HLS unroll
-                        cube_buffer[batch][in_ch][height][width] = line_buffer[batch][in_ch][width];
-                    }
-
-                    // 1x1x1 Convolution computation
                     float accum[T_OUT_CHANNELS];
                     #pragma HLS array_partition variable=accum complete dim=1
                     #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
 
                     for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
-                        #pragma HLS pipeline II=1
                         accum[out_ch] = bias[out_ch];
 
                         for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                            #pragma HLS unroll
-                            float input_val = cube_buffer[batch][in_ch][height][width];
-                            float kernel_val = kernel[out_ch][in_ch][0][0][0];
-                            accum[out_ch] += input_val * kernel_val;
+                            accum[out_ch] += input[batch][in_ch][depth][height][width] *
+                                             kernel[out_ch][in_ch][0][0][0];
                         }
 
                         output[batch][out_ch][depth][height][width] = accum[out_ch];

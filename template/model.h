@@ -75,9 +75,9 @@ void ConcatenateTensors(float tensor1[BATCH_SIZE][T_CHANNELS1][INPUT_DEPTH][INPU
                         float output[BATCH_SIZE][T_CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 
 template<int T_IN_CHANNELS, int T_OUT_CHANNELS>
-void FinalConv1x1(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-                  float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][1][1][1],
+void FinalConv1x1(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][1][1][1],
                   float bias[T_OUT_CHANNELS],
+                  float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
                   float output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 
 void Sigmoid3D(float input[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],

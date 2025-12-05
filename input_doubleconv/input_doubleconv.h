@@ -10,8 +10,7 @@
 #include <hls_vector.h>
 #include <math.h>
 #include <stdint.h>
-#include "../template/model_parameter.h"
-#include "../template/unet3d_reduced.h"
+#include "../template/model.h"
 
 // Top-level function that only calls DoubleConv3D2Head
 void InputDoubleConv(

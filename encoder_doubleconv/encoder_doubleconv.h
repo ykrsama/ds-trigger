@@ -10,7 +10,7 @@
 #include <hls_vector.h>
 #include <math.h>
 #include <stdint.h>
-#include "../template/unet3d_reduced.h"
+#include "../template/model.h"
 
 void EncoderDoubleConv(
     float input[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],

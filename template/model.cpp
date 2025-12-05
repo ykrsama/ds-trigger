@@ -1,4 +1,4 @@
-#include "../template/unet3d_reduced.h"
+#include "../template/model.h"
 
 
 // GroupNorm3D template
@@ -541,9 +541,9 @@ void ConcatenateTensors(float tensor1[BATCH_SIZE][T_CHANNELS1][INPUT_DEPTH][INPU
 }
 
 template<int T_IN_CHANNELS, int T_OUT_CHANNELS>
-void FinalConv1x1(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-                  float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][1][1][1],
+void FinalConv1x1(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][1][1][1],
                   float bias[T_OUT_CHANNELS],
+                  float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
                   float output[BATCH_SIZE][T_OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
     #pragma HLS array_partition variable=kernel cyclic factor=T_IN_CHANNELS dim=2
@@ -666,4 +666,4 @@ template void ConcatenateTensors<F_MAP_0, F_MAP_1, CONCAT_CHANNELS>(float[BATCH_
 template void DoubleConv3D<CONCAT_CHANNELS, F_MAP_0, F_MAP_0>(float[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH], float[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], float[CONCAT_CHANNELS], float[CONCAT_CHANNELS], float[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], float[F_MAP_0], float[F_MAP_0], float[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 // Output Path
 template void DoubleConv3D<F_MAP_0, F_MAP_0, F_MAP_0>(float[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH], float[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], float[F_MAP_0], float[F_MAP_0], float[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], float[F_MAP_0], float[F_MAP_0], float[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
-template void FinalConv1x1<F_MAP_0, OUT_CHANNELS>(float[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH], float[OUT_CHANNELS][F_MAP_0][1][1][1], float[OUT_CHANNELS], float[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
+template void FinalConv1x1<F_MAP_0, OUT_CHANNELS>(float[OUT_CHANNELS][F_MAP_0][1][1][1], float[OUT_CHANNELS], float[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH], float[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);

@@ -166,7 +166,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
     // Convolution computation with enhanced parallelization
     ConvBatch: for (int batch = 0; batch < BATCH_SIZE; batch++) {
         ConvDepth: for (int depth = 0; depth < PADDED_DEPTH; depth++) {
-            ConvHeight: (int height = 0; height < PADDED_HEIGHT; height++) {
+            ConvHeight: for (int height = 0; height < PADDED_HEIGHT; height++) {
                 ConvWidth: for (int width = 0; width < PADDED_WIDTH; width++) {
 
                     // Update cube buffer - parallel channel processing

@@ -117,7 +117,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
 
     // fill input
     float padded_input[BATCH_SIZE][T_IN_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
-    #pragma HLS stream variable=padded_input depth=10 type=fifo
+    #pragma HLS stream variable=padded_input type=fifo
     #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
     // Filling operation with better memory access patterns

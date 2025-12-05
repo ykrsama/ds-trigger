@@ -5,8 +5,8 @@
 
 int main() {
     // Initialize test data
-    float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    float kernel[OUT_CHANNELS][F_MAP_0][1][1][1];
+    float input[BATCH_SIZE][IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    float kernel[OUT_CHANNELS][IN_CHANNELS][1][1][1];
     float bias[OUT_CHANNELS];
     float output[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 
@@ -15,7 +15,7 @@ int main() {
 
     // Initialize input with random values
     for (int b = 0; b < BATCH_SIZE; b++) {
-        for (int c = 0; c < F_MAP_0; c++) {
+        for (int c = 0; c < IN_CHANNELS; c++) {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
@@ -28,7 +28,7 @@ int main() {
 
     // Initialize 1x1x1 kernel with small random weights
     for (int out_c = 0; out_c < OUT_CHANNELS; out_c++) {
-        for (int in_c = 0; in_c < F_MAP_0; in_c++) {
+        for (int in_c = 0; in_c < IN_CHANNELS; in_c++) {
             kernel[out_c][in_c][0][0][0] = ((float)rand() / RAND_MAX - 0.5f) * 0.1f;
         }
     }
@@ -52,9 +52,9 @@ int main() {
     }
 
     std::cout << "Starting Output Final Conv1x1 test..." << std::endl;
-    std::cout << "Input dimensions: [" << BATCH_SIZE << "][" << F_MAP_0 << "]["
+    std::cout << "Input dimensions: [" << BATCH_SIZE << "][" << IN_CHANNELS << "]["
               << INPUT_DEPTH << "][" << INPUT_HEIGHT << "][" << INPUT_WIDTH << "]" << std::endl;
-    std::cout << "Kernel dimensions: [" << OUT_CHANNELS << "][" << F_MAP_0 << "][1][1][1]" << std::endl;
+    std::cout << "Kernel dimensions: [" << OUT_CHANNELS << "][" << IN_CHANNELS << "][1][1][1]" << std::endl;
     std::cout << "Output dimensions: [" << BATCH_SIZE << "][" << OUT_CHANNELS << "]["
               << INPUT_DEPTH << "][" << INPUT_HEIGHT << "][" << INPUT_WIDTH << "]" << std::endl;
 
@@ -71,7 +71,7 @@ int main() {
 
     // Verify channel dimension change
     std::cout << "Channel dimension verification:" << std::endl;
-    std::cout << "Input channels " << F_MAP_0 << " -> Output channels " << OUT_CHANNELS << std::endl;
+    std::cout << "Input channels " << IN_CHANNELS << " -> Output channels " << OUT_CHANNELS << std::endl;
 
     return 0;
 }

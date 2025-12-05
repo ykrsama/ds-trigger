@@ -213,7 +213,6 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                                 (width) % CONV_STRIDE == 0) {
 
                                 float accum[T_OUT_CHANNELS];
-                                #pragma HLS array_partition variable=accum complete dim=1
                                 #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
 
                                 ConvKernelReLU: for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
@@ -678,3 +677,166 @@ template void DoubleConv3D<CONCAT_CHANNELS, F_MAP_0, F_MAP_0>(float[BATCH_SIZE][
 // Output Path
 template void DoubleConv3D<F_MAP_0, F_MAP_0, F_MAP_0>(float[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH], float[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], float[F_MAP_0], float[F_MAP_0], float[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], float[F_MAP_0], float[F_MAP_0], float[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 template void FinalConv1x1<F_MAP_0, OUT_CHANNELS>(float[OUT_CHANNELS][F_MAP_0][1][1][1], float[OUT_CHANNELS], float[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH], float[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
+
+
+//New
+
+// Input
+// (in Conv2d, chw refer to INPUT_DEPTH, INPUT_HEIGHT, INPUT_WIDTH)
+// DoubleConv2D2Head chw 11 x 43 x 43 -> 32 x 43 x 43 -> 64 x 43 x 43
+
+// Encode
+// MaxPool2D chw 64 x 43 x 43 -> 64 x 21 x 21
+// DoubleConv2D chw 64 x 21 x 21 -> 64 x 21 x 21 -> 128 x 21 x 21
+
+// Decode
+// Upsample2D chw 128 x 21 x 21 -> 128 x 43 x 43
+// Concat2D chw (64 x 43 x 43 + 128 x 43 x 43) -> 192 x 43 x 43
+// DoubleConv2D chw 192 x 43 x 43 -> 64 x 43 x 43 -> 64 x 43 x 43
+
+// Output
+// DoubleConv2D chw 64 x 43 x 43 -> 11 x 43 x 43 -> 11 x 43 x 43
+// reshape: cdhw  1 x 11 x 43 x 43
+// Output: finalconv cdhw 5 x 11 x 43 x 43 (OUT_CHANNELS, INPUT_DEPTH, INPUT_HEIGHT, INPUT_WIDTH)
+
+template<int T_IN_CHANNELS,
+    int T_OUT_CHANNELS,
+    int T_INPUT_HEIGHT,
+    int T_INPUT_WIDTH>
+void Conv2D(
+    float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL],
+    float input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+    float output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
+
+    #pragma HLS array_partition variable=kernel complete dim=2 // T_IN_CHANNELS
+    #pragma HLS array_partition variable=kernel complete dim=3 // K_H
+    #pragma HLS array_partition variable=kernel complete dim=4 // K_W
+    #pragma HLS array_partition variable=input complete dim=2
+    #pragma HLS array_partition variable=output complete dim=2
+
+    // Padded size calculation
+    const int PADDED_HEIGHT = T_INPUT_HEIGHT + 2 * CONV_PADDING;
+    const int PADDED_WIDTH = T_INPUT_WIDTH + 2 * CONV_PADDING;
+
+    // Padding
+    float padded_input[BATCH_SIZE][T_IN_CHANNELS][PADDED_HEIGHT][PADDED_WIDTH];
+    #pragma HLS stream variable=padded_input type=fifo
+    #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
+
+    // Filling the padded input buffer
+    PaddingBatch:
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        PaddingHeight:
+        for (int height = 0; height < PADDED_HEIGHT; height++) {
+            PaddingWidth:
+            for (int width = 0; width < PADDED_WIDTH; width++) {
+                // Parallelize channel access
+                PaddingChan:
+                for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                    int orig_height = height - CONV_PADDING;
+                    int orig_width = width - CONV_PADDING;
+
+                    bool valid_pixel = (orig_height >= 0 && orig_height < T_INPUT_HEIGHT &&
+                                        orig_width >= 0 && orig_width < T_INPUT_WIDTH);
+
+                    float pad_value = valid_pixel ? input[batch][in_ch][orig_height][orig_width] : (float) 0.0;
+                    padded_input[batch][in_ch][height][width] = pad_value;
+                }
+            }
+        }
+    }
+
+
+    // Line Buffer
+    float line_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][PADDED_WIDTH];
+    //#pragma HLS array_partition variable=line_buffer complete dim=2
+    #pragma HLS array_partition variable=line_buffer complete dim=3
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=bram
+
+    // Window Buffer
+    float window_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL];
+    #pragma HLS array_partition variable=window_buffer complete dim=2
+    #pragma HLS array_partition variable=window_buffer complete dim=3
+    #pragma HLS array_partition variable=window_buffer complete dim=4
+    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
+
+    ConvBatch:
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        ConvHeight:
+        for (int height = 0; height < PADDED_HEIGHT; height++) {
+            ConvWidth:
+            for (int width = 0; width < PADDED_WIDTH; width++) {
+                UpdateLineBuffer:
+                for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                    // Shift the rows up (K-1 shifts)
+                    for (int kh = 0; kh < CONV_KERNEL - 1; kh++) {
+                        line_buffer[batch][in_ch][kh][width] = line_buffer[batch][in_ch][kh + 1][width];
+                    }
+                    // Load the new row from padded input
+                    line_buffer[batch][in_ch][CONV_KERNEL - 1][width] =
+                        padded_input[batch][in_ch][height][width];
+                }
+
+                // Check if the line buffer is full
+                if (height >= CONV_KERNEL - 1) {
+
+                    // Update Window Buffer
+                    UpdateWindowBuffer:
+                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                        for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                            for (int kw = 0; kw < CONV_KERNEL - 1; kw++) {
+                                window_buffer[batch][in_ch][kh][kw] = window_buffer[batch][in_ch][kh][kw + 1];
+                            }
+                            window_buffer[batch][in_ch][kh][CONV_KERNEL - 1] =
+                                line_buffer[batch][in_ch][kh][width];
+                        }
+                    }
+
+                    if (width >= CONV_KERNEL - 1 &&
+                        (height - CONV_KERNEL + 1) % CONV_STRIDE == 0 &&
+                        (width - CONV_KERNEL + 1) % CONV_STRIDE == 0) {
+
+                        // Local accumulator array, fully partitioned for parallel writing
+                        float accum[T_OUT_CHANNELS];
+                        #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+
+                        // Initialize and perform MAC for all output channels in parallel
+                        ConvKernelMAC:
+                        for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
+                            #pragma HLS pipeline II=1
+                            accum[out_ch] = (float) 0.0;
+
+                            // Loop over all K*K*IC elements for a single output channel
+                            MAC_Loop:
+                            for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                                for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                    for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                        float window_val = window_buffer[batch][in_ch][kh][kw];
+                                        float kernel_val = kernel[out_ch][in_ch][kh][kw];
+                                        accum[out_ch] += window_val * kernel_val;
+                                    }
+                                }
+                            }
+
+                            // Calculate output indices
+                            int out_height = (height - CONV_KERNEL + 1) / CONV_STRIDE;
+                            int out_width = (width - CONV_KERNEL + 1) / CONV_STRIDE;
+
+                            // ReLU activation (similar to example2d.cpp L1643/L1727)
+                            float output_value = accum[out_ch];
+                            float relu_output = output_value > (float) 0.0 ? output_value : (float) 0.0;
+
+                            // Write result to the final output stream
+                            output[batch][out_ch][out_height][out_width] = relu_output;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Instantiate Conv2D
+template void Conv2D<INPUT_DEPTH, F_MAP_h, INPUT_HEIGHT, INPUT_WIDTH>(float[F_MAP_h][INPUT_DEPTH][CONV_KERNEL][CONV_KERNEL],
+                                                                      float[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+                                                                      float[BATCH_SIZE][F_MAP_h][INPUT_HEIGHT][INPUT_WIDTH]);

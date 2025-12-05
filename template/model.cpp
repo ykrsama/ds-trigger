@@ -151,7 +151,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
     #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
 
     float line_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
-    #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=line_buffer complete dim=2
     #pragma HLS array_partition variable=line_buffer complete dim=3
     #pragma HLS array_partition variable=line_buffer complete dim=4
     #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
@@ -235,26 +235,36 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                                 // Optimized convolution kernel computation
                                 ConvKernel: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                                     #pragma HLS pipeline II=1
-                                    for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                    #pragma HLS dependence variable=accum inter false
+
+                                    // Pre-load window values to avoid port conflicts
+                                    float local_window[CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+                                    #pragma HLS array_partition variable=local_window complete
+
+                                    PreloadLocalWindow: for (int kd = 0; kd < CONV_KERNEL; kd++) {
                                         #pragma HLS unroll
                                         for (int kh = 0; kh < CONV_KERNEL; kh++) {
                                             #pragma HLS unroll
                                             for (int kw = 0; kw < CONV_KERNEL; kw++) {
                                                 #pragma HLS unroll
-                                                float window_val = window_buffer[batch][in_ch][kd][kh][kw];
+                                                local_window[kd][kh][kw] = window_buffer[batch][in_ch][kd][kh][kw];
+                                            }
+                                        }
+                                    }
 
-                                                float partial_sums[T_OUT_CHANNELS];
-                                                #pragma HLS array_partition variable=partial_sums complete dim=1
+                                    // Compute convolution with local window
+                                    ConvLocalWindow: for (int kd = 0; kd < CONV_KERNEL; kd++) {
+                                        #pragma HLS unroll
+                                        for (int kh = 0; kh < CONV_KERNEL; kh++) {
+                                            #pragma HLS unroll
+                                            for (int kw = 0; kw < CONV_KERNEL; kw++) {
+                                                #pragma HLS unroll
+                                                float window_val = local_window[kd][kh][kw];
 
                                                 for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
                                                     #pragma HLS unroll factor=2
                                                     float kernel_val = kernel[out_ch][in_ch][kd][kh][kw];
-                                                    partial_sums[out_ch] = window_val * kernel_val;
-                                                }
-
-                                                for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
-                                                    #pragma HLS unroll factor=2
-                                                    accum[out_ch] += partial_sums[out_ch];
+                                                    accum[out_ch] += window_val * kernel_val;
                                                 }
                                             }
                                         }

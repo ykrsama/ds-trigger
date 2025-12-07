@@ -19,7 +19,7 @@ int main() {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
-                        input_data[b][c][d][h][w] = (data_t)rand() / RAND_MAX - 0.5f; // Random values between -0.5 and 0.5
+                        input_data[b][c][d][h][w] = (data_t)rand() / RAND_MAX - data_t(0.5); // Random values between -0.5 and 0.5
                     }
                 }
             }
@@ -28,12 +28,12 @@ int main() {
 
     // Initialize gamma parameters (scale factors, typically initialized to 1.0)
     for (int c = 0; c < F_MAP_0; c++) {
-        gamma[c] = 1.0f + ((data_t)rand() / RAND_MAX - 0.5f) * 0.2f; // Around 1.0 with small variation
+        gamma[c] = data_t(1.0) + ((data_t)rand() / RAND_MAX - data_t(0.5)) *  data_t(0.2); // Around 1.0 with small variation
     }
 
     // Initialize beta parameters (shift factors, typically initialized to 0.0)
     for (int c = 0; c < F_MAP_0; c++) {
-        beta[c] = ((data_t)rand() / RAND_MAX - 0.5f) * 0.1f; // Small values around 0.0
+        beta[c] = ((data_t)rand() / RAND_MAX - data_t(0.5)) * data_t(0.1); // Small values around 0.0
     }
 
     // Initialize output
@@ -42,7 +42,7 @@ int main() {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
-                        output_data[b][c][d][h][w] = 0.0f;
+                        output_data[b][c][d][h][w] = 0.0;
                     }
                 }
             }
@@ -70,8 +70,8 @@ int main() {
 
     // Verify that GroupNorm has been applied by checking statistics
     // Calculate mean and variance of first channel of output
-    data_t sum = 0.0f;
-    data_t sum_sq = 0.0f;
+    data_t sum = 0.0;
+    data_t sum_sq = 0.0;
     int total_elements = INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
 
     for (int d = 0; d < INPUT_DEPTH; d++) {
@@ -98,7 +98,7 @@ int main() {
             for (int d = 0; d < INPUT_DEPTH && !has_difference; d++) {
                 for (int h = 0; h < INPUT_HEIGHT && !has_difference; h++) {
                     for (int w = 0; w < INPUT_WIDTH && !has_difference; w++) {
-                        if (abs(output_data[b][c][d][h][w] - input_data[b][c][d][h][w]) > 1e-6f) {
+                        if (hls::fabs(output_data[b][c][d][h][w] - input_data[b][c][d][h][w]) > data_t(1e-6)) {
                             has_difference = true;
                         }
                     }

@@ -79,7 +79,7 @@ void GroupNorm3D(data_t input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_I
         #pragma HLS unroll
         data_t mu = group_sum[g] / N;
         data_t variance = (group_sq_sum[g] / N) - (mu * mu);
-        data_t sigma = sqrt(variance + EPSILON);
+        data_t sigma = hls::sqrt(variance + EPSILON);
 
         mean[g] = mu;
         inv_std[g] = data_t(1) / sigma;
@@ -153,7 +153,7 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
             PaddingHeight: for (int height = 0; height < PADDED_HEIGHT; height++) {
                 PaddingWidth: for (int width = 0; width < PADDED_WIDTH; width++) {
                     PaddingChan: for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
-                        data_t pad_value = (data_t) 0.000000;
+                        data_t pad_value = (data_t) 0.0;
                         int orig_depth = depth - CONV_PADDING;
                         int orig_height = height - CONV_PADDING;
                         int orig_width = width - CONV_PADDING;
@@ -162,7 +162,7 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
                                           orig_height >= 0 && orig_height < T_INPUT_HEIGHT &&
                                           orig_width >= 0 && orig_width < T_INPUT_WIDTH);
 
-                        pad_value = valid_pixel ? input[batch][in_ch][orig_depth][orig_height][orig_width] : (data_t)0.000000;
+                        pad_value = valid_pixel ? input[batch][in_ch][orig_depth][orig_height][orig_width] : (data_t)0.0;
                         padded_input[batch][in_ch][depth][height][width] = pad_value;
                     }
                 }
@@ -244,7 +244,7 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
 
                                 ConvKernelReLU: for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
                                     #pragma HLS pipeline II=1
-                                    accum[out_ch] = (data_t)0.000000;
+                                    accum[out_ch] = (data_t)0.0;
 
                                     for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                                         for (int kd = 0; kd < CONV_KERNEL; kd++) {
@@ -264,8 +264,8 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
 
                                     // ReLU activation
                                     data_t output_value = accum[out_ch];
-                                    bool is_positive = output_value > (data_t)0.000000;
-                                    data_t relu_output = is_positive ? output_value : (data_t)0.000000;
+                                    bool is_positive = output_value > (data_t)0.0;
+                                    data_t relu_output = is_positive ? output_value : (data_t)0.0;
                                     output[batch][out_ch][out_depth][out_height][out_width] = relu_output;
                                 }
                             }
@@ -327,20 +327,20 @@ void DoubleConv3D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_
                        data_t output2[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
     // buffers
     data_t gn1_out[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=gn1_out depth=10 type=fifo
+    #pragma HLS stream variable=gn1_out type=fifo
     #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
     data_t conv1_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=conv1_out depth=10 type=fifo
+    #pragma HLS stream variable=conv1_out type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
 
     data_t gn2_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=gn2_out depth=10 type=fifo
+    #pragma HLS stream variable=gn2_out type=fifo
     #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
 
     // Temporary output buffer
     data_t temp_output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=temp_output depth=10 type=fifo
+    #pragma HLS stream variable=temp_output type=fifo
     #pragma HLS bind_storage variable=temp_output type=ram_t2p impl=bram
 
     GroupNorm3D<T_IN_CHANNELS>(input, gamma1, beta1, gn1_out);
@@ -440,14 +440,14 @@ void MaxPool3D(data_t input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT
 
                                 for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
                                     #pragma HLS pipeline II=1
-                                    max_vals[ch] = -1e9f;  // FIXME: -FLT_MAX?
+                                    max_vals[ch] = data_t(-1e9);
 
                                     for (int kd = 0; kd < POOL_KERNEL; kd++) {
                                         for (int kh = 0; kh < POOL_KERNEL; kh++) {
                                             for (int kw = 0; kw < POOL_KERNEL; kw++) {
                                                 data_t window_val = window_buffer[batch][ch][kd][kh][kw];
                                                 data_t max_val_temp = max_vals[ch];
-                                                max_vals[ch] = fmax(max_val_temp, window_val);
+                                                max_vals[ch] = hls::fmax(max_val_temp, window_val);
                                             }
                                         }
                                     }
@@ -650,20 +650,20 @@ void Sigmoid3D(data_t input[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT]
 
                         // Fast sigmoid using lookup table with linear interpolation
                         data_t sigmoid_val;
-                        if (x <= -6.0f) {
-                            sigmoid_val = 0.0025f;
-                        } else if (x >= 6.0f) {
-                            sigmoid_val = 0.9975f;
+                        if (x <= data_t(-6.0)) {
+                            sigmoid_val = (data_t) 0.0025;
+                        } else if (x >= data_t(6.0)) {
+                            sigmoid_val = (data_t) 0.9975;
                         } else {
                             // Map x from [-6, 6] to [0, 96] index range
-                            data_t scaled_x = (x + 6.0f) * 8.0f;  // 8 = 96/12
+                            data_t scaled_x = (x + data_t(6.0)) * data_t(8.0);  // 8 = 96/12
                             int index = (int)scaled_x;
                             data_t frac = scaled_x - (data_t)index;
 
                             // Clamp index to valid range
                             if (index >= 96) {
                                 index = 95;
-                                frac = 1.0f;
+                                frac = (data_t) 1.0;
                             }
 
                             // Linear interpolation between two LUT values

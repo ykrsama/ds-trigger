@@ -101,7 +101,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
                         int group_idx = ch / CHANNELS_PER_GROUP;
 
                         // Read from Stream Buffer
-                        float value = gn_buffer[ch].read();
+                        float value = gn_buffer[batch][ch][depth][height][width];
 
                         // Parameters
                         float gamma_param = gamma[ch];

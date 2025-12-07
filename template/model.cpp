@@ -63,30 +63,30 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     // 2. Calculate Stats using separable accumulation pattern
     StatBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        // Process groups separately to avoid carried dependencies
-        StatGroup:
-        for (int g = 0; g < NUM_GROUPS; g++) {
-            float local_sum = 0.0f;
-            float local_sq_sum = 0.0f;
-            StatDepth:
-            for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
-                StatHeight:
-                for (int height = 0; height < T_INPUT_HEIGHT; height++) {
-                    StatWidth:
-                    for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                        #pragma HLS pipeline II=1
+        StatDepth:
+        for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+            StatHeight:
+            for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+                StatWidth:
+                for (int width = 0; width < T_INPUT_WIDTH; width++) {
+                    #pragma HLS pipeline II=1
+                    StatGroup:
+                    for (int g = 0; g < NUM_GROUPS; g++) {
+                        float group_partial_sum = 0.0f;
+                        float group_partial_sq_sum = 0.0f;
+
                         StatChan:
                         for (int ch = g * CHANNELS_PER_GROUP; ch < (g + 1) * CHANNELS_PER_GROUP && ch < T_IN_CHANNELS; ch++) {
                             float value = gn_buffer[batch][ch][depth][height][width];
-                            local_sum += value;
-                            local_sq_sum += (value * value);
+                            group_partial_sum += value;
+                            group_partial_sq_sum += (value * value);
                         }
+
+                        group_sum[g] += group_partial_sum;
+                        group_sq_sum[g] += group_partial_sq_sum;
                     }
                 }
             }
-
-            group_sum[g] += local_sum;
-            group_sq_sum[g] += local_sq_sum;
         }
     }
 

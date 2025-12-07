@@ -20,7 +20,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     // Total elements for mean division
     const float N = (float) (T_INPUT_DEPTH * T_INPUT_HEIGHT * T_INPUT_WIDTH * CHANNELS_PER_GROUP);
 
-    // Stream Buffer
+    // Buffer
     float gn_buffer[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS array_partition variable=gn_buffer complete dim=2
     #pragma HLS bind_storage variable=gn_buffer type=ram_t2p impl=bram
@@ -75,10 +75,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
                         StatChan:
                         for (int ch = 0; ch < CHANNELS_PER_GROUP; ch++) {
                             int channel_idx = g * CHANNELS_PER_GROUP + ch;
-
-                            // Read from Stream Buffer
                             float value = gn_buffer[batch][channel_idx][depth][height][width];
-
                             // Accumulate statistics
                             group_sum[g] += value;
                             group_sq_sum[g] += (value * value);

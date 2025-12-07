@@ -38,7 +38,7 @@
 #define F_MAP_h (F_MAP_0 / 2)  // Half of F_MAP_0 for input conv block
 
 // GroupNorm parameters
-#define NUM_GROUPS 1  // choose 1 here because num out channel is 5
+#define NUM_GROUPS 8  // choose 1 here because num out channel is 5
 #define EPSILON 1e-5f
 
 #endif // MODEL_PARAMETER_H

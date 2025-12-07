@@ -51,7 +51,6 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
                     #pragma HLS pipeline II=1
                     FillChan:
                     for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
-                        #pragma HLS unroll
                         float value = input_data[batch][ch][depth][height][width];
                         gn_buffer[batch][ch][depth][height][width] = value;
                     }
@@ -69,12 +68,11 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
             for (int height = 0; height < T_INPUT_HEIGHT; height++) {
                 StatWidth:
                 for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                    #pragma HLS pipeline II=1
                     StatGroup:
                     for (int g = 0; g < NUM_GROUPS; g++) {
+                        #pragma HLS pipeline II=1
                         float group_partial_sum = 0.0f;
                         float group_partial_sq_sum = 0.0f;
-
                         StatChan:
                         for (int ch = g * CHANNELS_PER_GROUP; ch < (g + 1) * CHANNELS_PER_GROUP && ch < T_IN_CHANNELS; ch++) {
                             float value = gn_buffer[batch][ch][depth][height][width];

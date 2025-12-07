@@ -6,8 +6,6 @@
 #include <hls_math.h>
 #include <hls_stream.h>
 #include <hls_vector.h>
-#include <math.h>
-#include <stdint.h>
 #include "../template/model_parameter.h"
 
 // Template function declarations

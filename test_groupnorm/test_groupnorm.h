@@ -1,14 +1,6 @@
 #ifndef TEST_GROUPNORM3D_H
 #define TEST_GROUPNORM3D_H
 
-#include <algorithm>
-#include <ap_fixed.h>
-#include <ap_int.h>
-#include <hls_math.h>
-#include <hls_stream.h>
-#include <hls_vector.h>
-#include <math.h>
-#include <stdint.h>
 #include "../template/model.h"
 
 void TestGroupNorm(

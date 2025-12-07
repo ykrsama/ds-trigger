@@ -24,29 +24,67 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     #pragma HLS array_partition variable=group_sum complete
     #pragma HLS array_partition variable=group_sq_sum complete
 
+    InitGroupSum:
     for (int g = 0; g < NUM_GROUPS; g++) {
     #pragma HLS unroll
         group_sum[g] = (float) 0.000000;
         group_sq_sum[g] = (float) 0.000000;
     }
 
+    // Separate loops to break dependencies
+    // First pass: copy data and collect per-channel statistics
+    float local_group_sum[NUM_GROUPS][T_IN_CHANNELS / NUM_GROUPS];
+    float local_group_sq_sum[NUM_GROUPS][T_IN_CHANNELS / NUM_GROUPS];
+    #pragma HLS array_partition variable=local_group_sum complete
+    #pragma HLS array_partition variable=local_group_sq_sum complete
+
+    // Initialize local accumulators
+    InitLocalGroupSum:
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        #pragma HLS unroll
+        for (int c = 0; c < T_IN_CHANNELS / NUM_GROUPS; c++) {
+            #pragma HLS unroll
+            local_group_sum[g][c] = 0.0f;
+            local_group_sq_sum[g][c] = 0.0f;
+        }
+    }
+
+    AccumBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
-            for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
-                for (int height = 0; height < T_INPUT_HEIGHT; height++) {
-                    for (int width = 0; width < T_INPUT_WIDTH; width++) {
+        AccumDepth:
+        for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+            AccumHeight:
+            for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+                #pragma HLS pipeline II=1
+                AccumWidth:
+                for (int width = 0; width < T_INPUT_WIDTH; width++) {
+                    AccumChan:
+                    for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
+                        #pragma HLS unroll
                         // channel group id
                         int group_idx = ch / CHANNELS_PER_GROUP;
+                        int ch_in_group = ch % CHANNELS_PER_GROUP;
                         // read input data
                         float value = input_data[batch][ch][depth][height][width];
                         // write buffer
                         gn_buffer[batch][ch][depth][height][width] = value;
-                        // add statistics
-                        group_sum[group_idx] += value;
-                        group_sq_sum[group_idx] += (value * value);
+                        // add statistics to local accumulators
+                        local_group_sum[group_idx][ch_in_group] += value;
+                        local_group_sq_sum[group_idx][ch_in_group] += (value * value);
                     }
                 }
             }
+        }
+    }
+
+    // Reduction phase: sum local accumulators to global statistics
+    Reduction:
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        #pragma HLS unroll
+        for (int c = 0; c < T_IN_CHANNELS / NUM_GROUPS; c++) {
+            #pragma HLS unroll
+            group_sum[g] += local_group_sum[g][c];
+            group_sq_sum[g] += local_group_sq_sum[g][c];
         }
     }
 
@@ -55,6 +93,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     #pragma HLS array_partition variable=mean complete
     #pragma HLS array_partition variable=inv_std complete
 
+    Mean:
     for (int g = 0; g < NUM_GROUPS; g++) {
     #pragma HLS unroll
         float mu = group_sum[g] / N;
@@ -65,12 +104,18 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
         inv_std[g] = float(1) / sigma;
     }
 
+    NormBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        NormDepth:
         for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+            NormHeight:
             for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+                #pragma HLS pipeline II=1
+                NormWidth:
                 for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                    #pragma HLS pipeline II=1
+                    NormChan:
                     for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
+                        #pragma HLS unroll
                         // channel group id
                         int group_idx = ch / CHANNELS_PER_GROUP;
                         // read from buffer

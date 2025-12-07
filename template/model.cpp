@@ -20,11 +20,9 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     // Total elements for mean division
     const float N = (float) (T_INPUT_DEPTH * T_INPUT_HEIGHT * T_INPUT_WIDTH * CHANNELS_PER_GROUP);
 
-    // Stream Buffer: Array of streams to support unrolled channel access
-    // Depth must cover the whole batch because Mean calculation blocks the pipeline
-    const int STREAM_DEPTH = BATCH_SIZE * T_INPUT_DEPTH * T_INPUT_HEIGHT * T_INPUT_WIDTH;
-    hls::stream<float> gn_buffer[T_IN_CHANNELS];
-    #pragma HLS stream variable=gn_buffer depth=STREAM_DEPTH
+    // Stream Buffer
+    float gn_buffer[T_IN_CHANNELS];
+    #pragma HLS bind_storage variable=gn_buffer type=ram_t2p impl=bram
 
     // Statistics
     float group_sum[NUM_GROUPS];
@@ -33,15 +31,14 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     #pragma HLS array_partition variable=group_sq_sum complete
 
     // Initialize statistics
-    InitGroupSum:
+    InitStat:
     for (int g = 0; g < NUM_GROUPS; g++) {
         #pragma HLS unroll
-        group_sum[g] = 0.0f;
-        group_sq_sum[g] = 0.0f;
+        group_sum[g] = (float)0.0;
+        group_sq_sum[g] = (float)0.0;
     }
 
     // 1. Calculate Stats & Fill Buffer
-    // Loop Order: Batch -> Depth -> Height -> Width -> Channel
     StatBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         StatDepth:
@@ -50,10 +47,6 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
             for (int height = 0; height < T_INPUT_HEIGHT; height++) {
                 StatWidth:
                 for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                    // Pipelining here allows HLS to schedule the inner unrolled loop efficiently
-                    // Removed 'II=1' to allow HLS to accommodate FP add latency without warnings
-                    #pragma HLS pipeline
-
                     StatChan:
                     for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
                         // Determine group
@@ -101,8 +94,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
             for (int height = 0; height < T_INPUT_HEIGHT; height++) {
                 NormWidth:
                 for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                    #pragma HLS pipeline
-
+                    #pragma HLS pipeline II=1
                     NormChan:
                     for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
                         int group_idx = ch / CHANNELS_PER_GROUP;

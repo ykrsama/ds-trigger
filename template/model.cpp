@@ -22,7 +22,11 @@ void GroupNorm3D(data_t input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_I
 
     // Buffer
     data_t gn_buffer[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
+    #pragma HLS array_partition variable=gn_buffer complete dim=1
     #pragma HLS array_partition variable=gn_buffer complete dim=2
+    #pragma HLS array_partition variable=gn_buffer complete dim=3
+    #pragma HLS array_partition variable=gn_buffer complete dim=4
+    #pragma HLS array_partition variable=gn_buffer complete dim=5
     #pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=lutram
 
     // Statistics
@@ -60,17 +64,17 @@ void GroupNorm3D(data_t input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_I
         }
     }
 
-    StatBatch:
-    for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        StatDepth:
-        for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
-            StatHeight:
-            for (int height = 0; height < T_INPUT_HEIGHT; height++) {
-                StatWidth:
-                for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                    #pragma HLS pipeline II=1
-                    StatGroup:
-                    for (int g = 0; g < NUM_GROUPS; g++) {
+    StatGroup:
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        #pragma HLS pipeline II=1
+        StatBatch:
+        for (int batch = 0; batch < BATCH_SIZE; batch++) {
+            StatDepth:
+            for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+                StatHeight:
+                for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+                    StatWidth:
+                    for (int width = 0; width < T_INPUT_WIDTH; width++) {
                         StatChan:
                         for (int ch = 0; ch < CHANNELS_PER_GROUP; ch++) {
                             int channel_idx = g * CHANNELS_PER_GROUP + ch;

@@ -5,14 +5,14 @@
 
 int main() {
     // Initialize test data
-    float input[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
-    float kernel1[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-    float gamma1[F_MAP_0];
-    float beta1[F_MAP_0];
-    float kernel2[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
-    float gamma2[F_MAP_0];
-    float beta2[F_MAP_0];
-    float output[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
+    data_t input[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
+    data_t kernel1[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    data_t gamma1[F_MAP_0];
+    data_t beta1[F_MAP_0];
+    data_t kernel2[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
+    data_t gamma2[F_MAP_0];
+    data_t beta2[F_MAP_0];
+    data_t output[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
 
     // Seed random number generator
     srand(time(NULL));
@@ -23,7 +23,7 @@ int main() {
             for (int d = 0; d < POOL_OUTPUT_DEPTH; d++) {
                 for (int h = 0; h < POOL_OUTPUT_HEIGHT; h++) {
                     for (int w = 0; w < POOL_OUTPUT_WIDTH; w++) {
-                        input[b][c][d][h][w] = (float)rand() / RAND_MAX - 0.5f; // Random values between -0.5 and 0.5
+                        input[b][c][d][h][w] = (data_t)rand() / RAND_MAX - (data_t)0.5; // Random values between -0.5 and 0.5
                     }
                 }
             }
@@ -36,7 +36,7 @@ int main() {
             for (int d = 0; d < CONV_KERNEL; d++) {
                 for (int h = 0; h < CONV_KERNEL; h++) {
                     for (int w = 0; w < CONV_KERNEL; w++) {
-                        kernel1[out_c][in_c][d][h][w] = ((float)rand() / RAND_MAX - 0.5f) * 0.1f;
+                        kernel1[out_c][in_c][d][h][w] = ((data_t)rand() / RAND_MAX - (data_t)0.5) * (data_t)0.1;
                     }
                 }
             }
@@ -49,7 +49,7 @@ int main() {
             for (int d = 0; d < CONV_KERNEL; d++) {
                 for (int h = 0; h < CONV_KERNEL; h++) {
                     for (int w = 0; w < CONV_KERNEL; w++) {
-                        kernel2[out_c][in_c][d][h][w] = ((float)rand() / RAND_MAX - 0.5f) * 0.1f;
+                        kernel2[out_c][in_c][d][h][w] = ((data_t)rand() / RAND_MAX - (data_t)0.5) * (data_t)0.1;
                     }
                 }
             }
@@ -58,10 +58,10 @@ int main() {
 
     // Initialize group norm parameters
     for (int c = 0; c < F_MAP_0; c++) {
-        gamma1[c] = 1.0f;
-        beta1[c] = 0.0f;
-        gamma2[c] = 1.0f;
-        beta2[c] = 0.0f;
+        gamma1[c] = (data_t)1.0;
+        beta1[c]  = (data_t)0.0;
+        gamma2[c] = (data_t)1.0;
+        beta2[c]  = (data_t)0.0;
     }
 
     // Initialize output
@@ -70,7 +70,7 @@ int main() {
             for (int d = 0; d < POOL_OUTPUT_DEPTH; d++) {
                 for (int h = 0; h < POOL_OUTPUT_HEIGHT; h++) {
                     for (int w = 0; w < POOL_OUTPUT_WIDTH; w++) {
-                        output[b][c][d][h][w] = 0.0f;
+                        output[b][c][d][h][w] = (data_t)0.0;
                     }
                 }
             }

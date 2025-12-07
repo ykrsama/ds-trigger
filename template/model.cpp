@@ -293,15 +293,15 @@ void DoubleConv3D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT
                   data_t output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
     // buffers
     data_t gn1_out[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=gn1_out depth=10 type=fifo
+    #pragma HLS stream variable=gn1_out type=fifo
     #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
     data_t conv1_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=conv1_out depth=10 type=fifo
+    #pragma HLS stream variable=conv1_out type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
 
     data_t gn2_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=gn2_out depth=10 type=fifo
+    #pragma HLS stream variable=gn2_out type=fifo
     #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
 
     GroupNorm3D<T_IN_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(input, gamma1, beta1, gn1_out);
@@ -349,7 +349,6 @@ void DoubleConv3D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_
     Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS>(kernel2, gn2_out, temp_output);
 
     // Duplicate output to both streams for skip connection
-    // TODO: Review here
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         for (int ch = 0; ch < T_OUT_CHANNELS; ch++) {
             for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {

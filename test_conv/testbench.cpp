@@ -1,5 +1,4 @@
 #include "test_conv.h"
-#include "../template/model.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>

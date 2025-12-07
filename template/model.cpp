@@ -22,8 +22,12 @@ void GroupNorm3D(data_t input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_I
 
     // Buffer
     data_t gn_buffer[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
+    #pragma HLS array_partition variable=gn_buffer complete dim=1
     #pragma HLS array_partition variable=gn_buffer complete dim=2
-    #pragma HLS bind_storage variable=gn_buffer type=ram_t2p impl=bram
+    #pragma HLS array_partition variable=gn_buffer complete dim=3
+    #pragma HLS array_partition variable=gn_buffer complete dim=4
+    #pragma HLS array_partition variable=gn_buffer complete dim=5
+    #pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=lutram
 
     // Statistics
     data_t group_sum[NUM_GROUPS];
@@ -40,33 +44,49 @@ void GroupNorm3D(data_t input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_I
     }
 
     // Fill Buffer
-    FillBatch:
+    BufferBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        FillDepth:
+        BufferDepth:
         for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
-            FillHeight:
+            BufferHeight:
             for (int height = 0; height < T_INPUT_HEIGHT; height++) {
-                FillWidth:
+                BufferWidth:
                 for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                    FillGroup:
-                    for (int g = 0; g < NUM_GROUPS; g++) {
-                        #pragma HLS pipeline II=1
-                        FillChan:
-                        for (int ch_g = 0; ch_g < CHANNELS_PER_GROUP; ch_g++) {
-                            #pragma HLS unroll
-                            int ch = g * CHANNELS_PER_GROUP + ch_g;
-                            data_t value = input_data[batch][ch][depth][height][width];
-                            gn_buffer[batch][ch][depth][height][width] = value;
-                            group_sum[g] += value;
-                            group_sq_sum[g] += (value * value);
-                        }
+                    #pragma HLS pipeline II=1
+                    BufferChan:
+                    for (int ch_g = 0; ch_g < T_IN_CHANNELS; ch_g++) {
+                        #pragma HLS unroll
+                        data_t value = input_data[batch][ch][depth][height][width];
+                        gn_buffer[batch][ch][depth][height][width] = value;
                     }
-
                 }
             }
         }
     }
 
+    StatGroup:
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        #pragma HLS pipeline II=1
+        StatBatch:
+        for (int batch = 0; batch < BATCH_SIZE; batch++) {
+            StatDepth:
+            for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+                StatHeight:
+                for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+                    StatWidth:
+                    for (int width = 0; width < T_INPUT_WIDTH; width++) {
+                        StatChan:
+                        for (int ch = 0; ch < CHANNELS_PER_GROUP; ch++) {
+                            int channel_idx = g * CHANNELS_PER_GROUP + ch;
+                            data_t value = gn_buffer[batch][channel_idx][depth][height][width];
+                            group_sum[g] += value;
+                            group_sq_sum[g] += value * value;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Calculate Mean & Variance
     data_t mean[NUM_GROUPS];

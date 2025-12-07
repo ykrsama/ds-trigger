@@ -56,7 +56,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
                         float value = input_data[batch][ch][depth][height][width];
 
                         // Write to Stream Buffer
-                        gn_buffer[ch].write(value);
+                        gn_buffer[batch][ch][depth][height][width] = value;
 
                         // Accumulate Statistics
                         // HLS will schedule this with necessary latency (e.g. II=4)

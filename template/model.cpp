@@ -15,14 +15,16 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     #pragma HLS array_partition variable=input_data complete dim=2
     #pragma HLS array_partition variable=output_data complete dim=2
 
-    // calculate channel number
-    int CHANNELS_PER_GROUP = T_IN_CHANNELS / NUM_GROUPS;
-    float N = (float) (T_INPUT_DEPTH * T_INPUT_HEIGHT * T_INPUT_WIDTH * CHANNELS_PER_GROUP);
+    // Calculate channel number
+    const int CHANNELS_PER_GROUP = T_IN_CHANNELS / NUM_GROUPS;
+    // Total elements for mean division
+    const float N = (float) (T_INPUT_DEPTH * T_INPUT_HEIGHT * T_INPUT_WIDTH * CHANNELS_PER_GROUP);
 
-    // 1. On chip buffer
-    float gn_buffer[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=gn_buffer type=fifo
-    #pragma HLS bind_storage variable=gn_buffer type=ram_t2p impl=bram
+    // Stream Buffer: Array of streams to support unrolled channel access
+    // Depth must cover the whole batch because Mean calculation blocks the pipeline
+    const int STREAM_DEPTH = BATCH_SIZE * T_INPUT_DEPTH * T_INPUT_HEIGHT * T_INPUT_WIDTH;
+    hls::stream<float> gn_buffer[T_IN_CHANNELS];
+    #pragma HLS stream variable=gn_buffer depth=STREAM_DEPTH
 
     // Statistics
     float group_sum[NUM_GROUPS];
@@ -30,30 +32,41 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     #pragma HLS array_partition variable=group_sum complete
     #pragma HLS array_partition variable=group_sq_sum complete
 
+    // Initialize statistics
     InitGroupSum:
     for (int g = 0; g < NUM_GROUPS; g++) {
-    #pragma HLS unroll
-        group_sum[g] = (float) 0.000000;
-        group_sq_sum[g] = (float) 0.000000;
+        #pragma HLS unroll
+        group_sum[g] = 0.0f;
+        group_sq_sum[g] = 0.0f;
     }
 
+    // 1. Calculate Stats & Fill Buffer
+    // Loop Order: Batch -> Depth -> Height -> Width -> Channel
     StatBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        StatChan:
-        for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
-            StatDepth:
-            for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
-                StatHeight:
-                for (int height = 0; height < T_INPUT_HEIGHT; height++) {
-                    StatWidth:
-                    for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                        // channel group id
+        StatDepth:
+        for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+            StatHeight:
+            for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+                StatWidth:
+                for (int width = 0; width < T_INPUT_WIDTH; width++) {
+                    // Pipelining here allows HLS to schedule the inner unrolled loop efficiently
+                    // Removed 'II=1' to allow HLS to accommodate FP add latency without warnings
+                    #pragma HLS pipeline
+
+                    StatChan:
+                    for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
+                        // Determine group
                         int group_idx = ch / CHANNELS_PER_GROUP;
-                        // read input data
+
+                        // Read Input
                         float value = input_data[batch][ch][depth][height][width];
-                        // write buffer
-                        gn_buffer[batch][ch][depth][height][width] = value;
-                        // add statistics
+
+                        // Write to Stream Buffer
+                        gn_buffer[ch].write(value);
+
+                        // Accumulate Statistics
+                        // HLS will schedule this with necessary latency (e.g. II=4)
                         group_sum[group_idx] += value;
                         group_sq_sum[group_idx] += (value * value);
                     }
@@ -62,6 +75,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
         }
     }
 
+    // 2. Calculate Mean & Variance
     float mean[NUM_GROUPS];
     float inv_std[NUM_GROUPS];
     #pragma HLS array_partition variable=mean complete
@@ -78,6 +92,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
         inv_std[g] = float(1) / sigma;
     }
 
+    // 3. Normalize & Write Output
     NormBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         NormDepth:
@@ -86,24 +101,26 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
             for (int height = 0; height < T_INPUT_HEIGHT; height++) {
                 NormWidth:
                 for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                    #pragma HLS pipeline II=1
+                    #pragma HLS pipeline
+
                     NormChan:
                     for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
-                        // channel group id
                         int group_idx = ch / CHANNELS_PER_GROUP;
-                        // read from buffer
-                        float value = gn_buffer[batch][ch][depth][height][width];
-                        // gamma and beta
+
+                        // Read from Stream Buffer
+                        float value = gn_buffer[ch].read();
+
+                        // Parameters
                         float gamma_param = gamma[ch];
                         float beta_param = beta[ch];
-                        // statistics
                         float group_mean = mean[group_idx];
                         float group_inv_std = inv_std[group_idx];
-                        // normalize
+
+                        // Normalize
                         float normalized_value = (value - group_mean) * group_inv_std;
-                        // scale and shift
                         float output_value = normalized_value * gamma_param + beta_param;
-                        // write output
+
+                        // Write Output
                         output_data[batch][ch][depth][height][width] = output_value;
                     }
                 }

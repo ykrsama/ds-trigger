@@ -81,8 +81,8 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
                             group_partial_sq_sum += (value * value);
                         }
 
-                        group_sum[g] = group_partial_sum;
-                        group_sq_sum[g] = group_partial_sq_sum;
+                        group_sum[g] += group_partial_sum;
+                        group_sq_sum[g] += group_partial_sq_sum;
                     }
                 }
             }

@@ -5,10 +5,10 @@
 
 int main() {
     // Initialize test data
-    float input_data[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    float gamma[F_MAP_0];
-    float beta[F_MAP_0];
-    float output_data[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    data_t input_data[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    data_t gamma[F_MAP_0];
+    data_t beta[F_MAP_0];
+    data_t output_data[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
 
     // Seed random number generator
     srand(time(NULL));
@@ -19,7 +19,7 @@ int main() {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
-                        input_data[b][c][d][h][w] = (float)rand() / RAND_MAX - 0.5f; // Random values between -0.5 and 0.5
+                        input_data[b][c][d][h][w] = (data_t)rand() / RAND_MAX - 0.5f; // Random values between -0.5 and 0.5
                     }
                 }
             }
@@ -28,12 +28,12 @@ int main() {
 
     // Initialize gamma parameters (scale factors, typically initialized to 1.0)
     for (int c = 0; c < F_MAP_0; c++) {
-        gamma[c] = 1.0f + ((float)rand() / RAND_MAX - 0.5f) * 0.2f; // Around 1.0 with small variation
+        gamma[c] = 1.0f + ((data_t)rand() / RAND_MAX - 0.5f) * 0.2f; // Around 1.0 with small variation
     }
 
     // Initialize beta parameters (shift factors, typically initialized to 0.0)
     for (int c = 0; c < F_MAP_0; c++) {
-        beta[c] = ((float)rand() / RAND_MAX - 0.5f) * 0.1f; // Small values around 0.0
+        beta[c] = ((data_t)rand() / RAND_MAX - 0.5f) * 0.1f; // Small values around 0.0
     }
 
     // Initialize output
@@ -70,22 +70,22 @@ int main() {
 
     // Verify that GroupNorm has been applied by checking statistics
     // Calculate mean and variance of first channel of output
-    float sum = 0.0f;
-    float sum_sq = 0.0f;
+    data_t sum = 0.0f;
+    data_t sum_sq = 0.0f;
     int total_elements = INPUT_DEPTH * INPUT_HEIGHT * INPUT_WIDTH;
 
     for (int d = 0; d < INPUT_DEPTH; d++) {
         for (int h = 0; h < INPUT_HEIGHT; h++) {
             for (int w = 0; w < INPUT_WIDTH; w++) {
-                float value = output_data[0][0][d][h][w];
+                data_t value = output_data[0][0][d][h][w];
                 sum += value;
                 sum_sq += value * value;
             }
         }
     }
 
-    float mean = sum / total_elements;
-    float variance = (sum_sq / total_elements) - (mean * mean);
+    data_t mean = sum / total_elements;
+    data_t variance = (sum_sq / total_elements) - (mean * mean);
 
     std::cout << "Output statistics for channel 0:" << std::endl;
     std::cout << "Mean: " << mean << " (should be close to beta[0] = " << beta[0] << ")" << std::endl;

@@ -59,7 +59,6 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
         }
     }
 
-    static_assert CHANNELS_PER_GROUP > 0
     // 2. Calculate Stats using separable accumulation pattern
     StatBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
@@ -69,23 +68,18 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
             for (int height = 0; height < T_INPUT_HEIGHT; height++) {
                 StatWidth:
                 for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                    StatGroup:
-                    for (int g = 0; g < NUM_GROUPS; g++) {
-                        #pragma HLS pipeline II=1
-                        float group_partial_sum = 0.0f;
-                        float group_partial_sq_sum = 0.0f;
-                        StatChan:
-                        for (int ch = 0; ch < CHANNELS_PER_GROUP; ch++) {
+                    StatChan:
+                    for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
+                        StatGroup:
+                        for (int g = 0; g < NUM_GROUPS; g++) {
                             #pragma HLS unroll
-                            if (ch / CHANNELS_PER_GROUP == g) {
+                            int group_idx = ch / CHANNELS_PER_GROUP;
+                            if (group_idx == g) {
                                 float value = gn_buffer[batch][ch][depth][height][width];
-                                group_partial_sum += value;
-                                group_partial_sq_sum += (value * value);
+                                group_sum[g] += value;
+                                group_sq_sum[g] += (value * value);
                             }
                         }
-
-                        group_sum[g] += group_partial_sum;
-                        group_sq_sum[g] += group_partial_sq_sum;
                     }
                 }
             }

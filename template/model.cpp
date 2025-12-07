@@ -75,13 +75,14 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
                         float group_partial_sq_sum = 0.0f;
                         StatChan:
                         for (int ch = g * CHANNELS_PER_GROUP; ch < (g + 1) * CHANNELS_PER_GROUP && ch < T_IN_CHANNELS; ch++) {
+                            #pragma HLS unroll
                             float value = gn_buffer[batch][ch][depth][height][width];
                             group_partial_sum += value;
                             group_partial_sq_sum += (value * value);
                         }
 
-                        group_sum[g] += group_partial_sum;
-                        group_sq_sum[g] += group_partial_sq_sum;
+                        group_sum[g] = group_partial_sum;
+                        group_sq_sum[g] = group_partial_sq_sum;
                     }
                 }
             }

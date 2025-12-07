@@ -22,7 +22,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     // 1. On chip buffer
     float gn_buffer[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
     #pragma HLS stream variable=gn_buffer type=fifo
-    #pragma HLS bind_storage variable=gn_buffer type=ram_2p impl=uram
+    #pragma HLS bind_storage variable=gn_buffer type=ram_t2p impl=bram
 
     // Statistics
     float group_sum[NUM_GROUPS];
@@ -231,7 +231,7 @@ void Conv3D(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL
                                 (width) % CONV_STRIDE == 0) {
 
                                 float accum[T_OUT_CHANNELS];
-                                #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+                                #pragma HLS bind_storage variable=accum type=ram_t2p impl=bram
 
                                 ConvKernelReLU: for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
                                     #pragma HLS pipeline II=1
@@ -427,7 +427,7 @@ void MaxPool3D(float input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT]
                                 (width) % POOL_STRIDE == 0) {
 
                                 float max_vals[T_IN_CHANNELS];
-                                #pragma HLS bind_storage variable=max_vals type=ram_2p impl=bram
+                                #pragma HLS bind_storage variable=max_vals type=ram_t2p impl=bram
 
                                 for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
                                     #pragma HLS pipeline II=1
@@ -588,7 +588,7 @@ void FinalConv1x1(float kernel[T_OUT_CHANNELS][T_IN_CHANNELS][1][1][1],
                 ConvWidth:
                 for (int width = 0; width < INPUT_WIDTH; width++) {
                     float accum[T_OUT_CHANNELS];
-                    #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+                    #pragma HLS bind_storage variable=accum type=ram_t2p impl=bram
 
                     ConvMAC:
                     for (int out_ch = 0; out_ch < T_OUT_CHANNELS; out_ch++) {
@@ -773,7 +773,7 @@ void Conv2D(
     float line_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][PADDED_WIDTH];
     //#pragma HLS array_partition variable=line_buffer complete dim=2
     #pragma HLS array_partition variable=line_buffer complete dim=3
-    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=bram
+    #pragma HLS bind_storage variable=line_buffer type=ram_t2p impl=bram
 
     // Window Buffer
     float window_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL];
@@ -820,7 +820,7 @@ void Conv2D(
 
                         // Local accumulator array, fully partitioned for parallel writing
                         float accum[T_OUT_CHANNELS];
-                        #pragma HLS bind_storage variable=accum type=ram_2p impl=bram
+                        #pragma HLS bind_storage variable=accum type=ram_t2p impl=bram
 
                         // Initialize and perform MAC for all output channels in parallel
                         ConvKernelMAC:

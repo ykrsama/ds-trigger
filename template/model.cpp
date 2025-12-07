@@ -31,12 +31,6 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     #pragma HLS array_partition variable=group_sum complete
     #pragma HLS array_partition variable=group_sq_sum complete
 
-    float group_sum_buffer[T_IN_CHANNELS];
-    float group_sq_sum_buffer[T_IN_CHANNELS];
-    #pragma HLS array_partition variable=group_sum_buffer complete
-    #pragma HLS array_partition variable=group_sq_sum_buffer complete
-
-
     // Initialize statistics
     InitStat:
     for (int g = 0; g < NUM_GROUPS; g++) {
@@ -44,14 +38,6 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
         group_sum[g] = (float)0.0;
         group_sq_sum[g] = (float)0.0;
     }
-
-    InitGroupBuffer:
-    for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
-        #pragma HLS unroll
-        group_sum_buffer[ch] = (float)0.0;
-        group_sq_sum_buffer[ch] = (float)0.0;
-    }
-
 
     // Fill Buffer
     FillBatch:
@@ -62,32 +48,24 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
             for (int height = 0; height < T_INPUT_HEIGHT; height++) {
                 FillWidth:
                 for (int width = 0; width < T_INPUT_WIDTH; width++) {
-                    #pragma HLS pipeline II=1
-                    FillChan:
-                    for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
-                        float value = input_data[batch][ch][depth][height][width];
-                        gn_buffer[batch][ch][depth][height][width] = value;
-                        group_sum_buffer[ch] += value;
-                        group_sq_sum_buffer[ch] += (value * value);
+                    FillGroup:
+                    for (int g = 0; g < NUM_GROUPS; g++) {
+                        #pragma HLS pipeline II=1
+                        FillChan:
+                        for (int ch_g = 0; ch < CHANNELS_PER_GROUP; ch_g++) {
+                            #pragma HLS unroll
+                            int ch = g * CHANNELS_PER_GROUP + ch_g;
+                            float value = input_data[batch][ch][depth][height][width];
+                            gn_buffer[batch][ch][depth][height][width] = value;
+                            group_sum[g] += value;
+                            group_sq_sum[g] += (value * value);
+                        }
                     }
+
                 }
             }
         }
     }
-
-    // Calculate Group Sum
-    GroupSumChan:
-    for (int ch = 0; ch < CHANNELS_PER_GROUP; ch++) {
-        #pragma HLS pipeline II=1
-        GroupSum:
-        for (int g = 0; g < NUM_GROUPS; g++) {
-            #pragma HLS unroll
-            int channel_idx = g * CHANNELS_PER_GROUP + ch;
-            group_sum[g] += group_sum_buffer[channel_idx];
-            group_sq_sum[g] += group_sq_sum_buffer[channel_idx];
-        }
-    }
-
 
 
     // Calculate Mean & Variance

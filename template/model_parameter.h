@@ -39,6 +39,6 @@
 
 // GroupNorm parameters
 #define NUM_GROUPS 8  // choose 1 here because num out channel is 5
-#define EPSILON 1e-5f
+#define EPSILON data_t(1e-5f)
 
 #endif // MODEL_PARAMETER_H

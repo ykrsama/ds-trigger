@@ -191,7 +191,7 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
     #pragma HLS array_partition variable=line_buffer complete dim=2
 //    #pragma HLS array_partition variable=line_buffer complete dim=3
 //    #pragma HLS array_partition variable=line_buffer complete dim=4
-    #pragma HLS array_partition variable=cube_buffer complete dim=5
+    #pragma HLS array_partition variable=line_buffer complete dim=5
     #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
     data_t window_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];

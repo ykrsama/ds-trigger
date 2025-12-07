@@ -21,7 +21,8 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
     const float N = (float) (T_INPUT_DEPTH * T_INPUT_HEIGHT * T_INPUT_WIDTH * CHANNELS_PER_GROUP);
 
     // Stream Buffer
-    float gn_buffer[T_IN_CHANNELS];
+    float gn_buffer[BATCH_SIZE][IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    #pragma HLS array_partition variable=gn_buffer complete dim=2
     #pragma HLS bind_storage variable=gn_buffer type=ram_t2p impl=bram
 
     // Statistics

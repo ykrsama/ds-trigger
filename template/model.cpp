@@ -135,6 +135,12 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
     #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=5
 
+    #pragma HLS array_partition variable=input complete dim=2
+    #pragma HLS array_partition variable=input complete dim=5
+
+    #pragma HLS array_partition variable=output complete dim=2
+    #pragma HLS array_partition variable=output complete dim=5
+
     // padded size
     const int PADDED_DEPTH = T_INPUT_DEPTH + 2 * CONV_PADDING;
     const int PADDED_HEIGHT = T_INPUT_HEIGHT + 2 * CONV_PADDING;
@@ -142,7 +148,8 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
 
     // fill input
     data_t padded_input[BATCH_SIZE][T_IN_CHANNELS][PADDED_DEPTH][PADDED_HEIGHT][PADDED_WIDTH];
-    #pragma HLS stream variable=padded_input type=fifo
+    #pragma HLS array_partition variable=padded_input complete dim=2
+    #pragma HLS array_partition variable=padded_input complete dim=5
     #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
 
     // Filling operation with better memory access patterns
@@ -152,6 +159,7 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
         for (int depth = 0; depth < PADDED_DEPTH; depth++) {
             PaddingHeight:
             for (int height = 0; height < PADDED_HEIGHT; height++) {
+                #pragma HLS pipeline II=1
                 PaddingWidth:
                 for (int width = 0; width < PADDED_WIDTH; width++) {
                     PaddingChan:
@@ -175,14 +183,15 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
 
     // Buffer definitions for convolution - optimized memory interfaces
     data_t cube_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][PADDED_HEIGHT][PADDED_WIDTH];
-//    #pragma HLS array_partition variable=cube_buffer complete dim=2
-//    #pragma HLS array_partition variable=cube_buffer complete dim=3
+    #pragma HLS array_partition variable=cube_buffer complete dim=2
+    #pragma HLS array_partition variable=cube_buffer complete dim=5
     #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
 
     data_t line_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][PADDED_WIDTH];
-//    #pragma HLS array_partition variable=line_buffer complete dim=2
+    #pragma HLS array_partition variable=line_buffer complete dim=2
 //    #pragma HLS array_partition variable=line_buffer complete dim=3
 //    #pragma HLS array_partition variable=line_buffer complete dim=4
+    #pragma HLS array_partition variable=cube_buffer complete dim=5
     #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
     data_t window_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL];
@@ -199,9 +208,9 @@ void Conv3D(data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNE
         for (int depth = 0; depth < PADDED_DEPTH; depth++) {
             ConvHeight:
             for (int height = 0; height < PADDED_HEIGHT; height++) {
+                #pragma HLS pipeline II=1                
                 ConvWidth:
                 for (int width = 0; width < PADDED_WIDTH; width++) {
-
                     // Update cube buffer - parallel channel processing
                     UpdateCubeBuffer:
                     for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
@@ -704,6 +713,8 @@ template void Conv3D<F_MAP_0, F_MAP_0, POOL_OUTPUT_DEPTH, POOL_OUTPUT_HEIGHT, PO
 template void Conv3D<F_MAP_0, F_MAP_1, POOL_OUTPUT_DEPTH, POOL_OUTPUT_HEIGHT, POOL_OUTPUT_WIDTH>(data_t[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], data_t[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH], data_t[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]);
 template void Conv3D<CONCAT_CHANNELS, F_MAP_0>(data_t[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], data_t[BATCH_SIZE][CONCAT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH], data_t[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 template void Conv3D<F_MAP_0, F_MAP_0>(data_t[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], data_t[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH], data_t[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
+
+template void Conv3D<1, F_MAP_0>(data_t[F_MAP_0][1][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL], data_t[BATCH_SIZE][1][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH], data_t[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 
 // Template function instantiations for top function
 // Input Path

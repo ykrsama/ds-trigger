@@ -78,6 +78,7 @@ void GroupNorm3D(float input_data[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_IN
                         for (int ch = 0; ch < CHANNELS_PER_GROUP; ch++) {
                             #pragma HLS unroll
                             if (ch / CHANNELS_PER_GROUP == g) {
+                                float value = gn_buffer[batch][ch][depth][height][width];
                                 group_partial_sum += value;
                                 group_partial_sq_sum += (value * value);
                             }

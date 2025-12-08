@@ -974,12 +974,75 @@ void Conv2D(
     }
 }
 
+template<int T_IN_CHANNELS,
+         int T_MID_CHANNELS,
+         int T_OUT_CHANNELS,
+         int T_INPUT_HEIGHT,
+         int T_INPUT_WIDTH>
+void DoubleConv2D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+                       data_t kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL],
+                       data_t kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL],
+                       data_t output1[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+                       data_t output2[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
+
+    data_t conv1_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH];
+    #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
+
+    // Temporary output buffer
+    data_t temp_output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH];
+    #pragma HLS array_partition variable=temp_output cyclic factor=T_OUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=temp_output complete dim=4
+    #pragma HLS bind_storage variable=temp_output type=ram_t2p impl=bram
+
+    #pragma HLS array_partition variable=output1 cyclic factor=T_OUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=output1 complete dim=4
+
+    #pragma HLS array_partition variable=output2 cyclic factor=T_OUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=output2 complete dim=4
+
+    Conv2D<T_IN_CHANNELS, T_MID_CHANNELS, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel1, input, conv1_out);
+    Conv2D<T_MID_CHANNELS, T_OUT_CHANNELS, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel2, conv1_out, temp_output);
+
+    // Duplicate output to both streams for skip connection
+    DupOutputBatch:
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        DupOutputHeight:
+        for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+            #pragma HLS pipeline II=1
+            DupOutputWidth:
+            for (int width = 0; width < T_INPUT_WIDTH; width++) {
+                #pragma HLS unroll
+                DupOutputChan:
+                for (int ch = 0; ch < T_OUT_CHANNELS; ch++) {
+                    #pragma HLS unroll
+                    data_t value = temp_output[batch][ch][height][width];
+                    output1[batch][ch][height][width] = value;
+                    output2[batch][ch][height][width] = value;
+                }
+            }
+        }
+    }
+}
+
+
 // Instantiate Conv2D
 template void Conv2D<INPUT_DEPTH, F_MAP_h, INPUT_HEIGHT, INPUT_WIDTH>(
     data_t[F_MAP_h][INPUT_DEPTH][CONV_KERNEL][CONV_KERNEL],
     data_t[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     data_t[BATCH_SIZE][F_MAP_h][INPUT_HEIGHT][INPUT_WIDTH]);
 
+template void Conv2D<F_MAP_h, F_MAP_0, INPUT_HEIGHT, INPUT_WIDTH>(
+    data_t[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL],
+    data_t[BATCH_SIZE][F_MAP_h][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH]);
+
+// Instantiate DoubleConv2D2Head for input path: chw 11 x 43 x 43 -> 32 x 43 x 43 -> 64 x 43 x 43
+template void DoubleConv2D2Head<INPUT_DEPTH, F_MAP_h, F_MAP_0, INPUT_HEIGHT, INPUT_WIDTH>(
+    data_t[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t[F_MAP_h][INPUT_DEPTH][CONV_KERNEL][CONV_KERNEL],
+    data_t[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL],
+    data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH]);
 
 // OutputPath
 template void FinalConv1x1<IN_CHANNELS, OUT_CHANNELS>(

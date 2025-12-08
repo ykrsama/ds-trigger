@@ -92,4 +92,16 @@ void Conv2D(
     data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
     data_t output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH]);
 
+// DoubleConv2D2Head
+template<int T_IN_CHANNELS,
+    int T_MID_CHANNELS,
+    int T_OUT_CHANNELS,
+    int T_INPUT_HEIGHT,
+    int T_INPUT_WIDTH>
+void DoubleConv2D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+                       data_t kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL],
+                       data_t kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL],
+                       data_t output1[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+                       data_t output2[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH]);
+
 #endif // MODEL_H

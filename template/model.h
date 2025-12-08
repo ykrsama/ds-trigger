@@ -104,4 +104,11 @@ void DoubleConv2D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T
                        data_t output1[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                        data_t output2[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH]);
 
+// MaxPool2D
+template<int T_IN_CHANNELS,
+         int T_INPUT_HEIGHT,
+         int T_INPUT_WIDTH>
+void MaxPool2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+               data_t output[BATCH_SIZE][T_IN_CHANNELS][(T_INPUT_HEIGHT/POOL_STRIDE)][(T_INPUT_WIDTH/POOL_STRIDE)]);
+
 #endif // MODEL_H

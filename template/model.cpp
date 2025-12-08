@@ -960,7 +960,7 @@ void Conv2D(
                             int out_height = (height - CONV_KERNEL + 1) / CONV_STRIDE;
                             int out_width = (width - CONV_KERNEL + 1) / CONV_STRIDE;
 
-                            // ReLU activation (similar to example2d.cpp L1643/L1727)
+                            // ReLU
                             data_t output_value = accum[out_ch];
                             data_t relu_output = output_value > (data_t) 0.0 ? output_value : (data_t) 0.0;
 
@@ -1025,6 +1025,91 @@ void DoubleConv2D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T
 }
 
 
+template<int T_IN_CHANNELS,
+         int T_INPUT_HEIGHT,
+         int T_INPUT_WIDTH>
+void MaxPool2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+               data_t output[BATCH_SIZE][T_IN_CHANNELS][(T_INPUT_HEIGHT/POOL_STRIDE)][(T_INPUT_WIDTH/POOL_STRIDE)]) {
+    #pragma HLS array_partition variable=input cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=output cyclic factor=T_IN_CHANNELS dim=2
+
+    // Buffer definitions
+    data_t line_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][T_INPUT_WIDTH];
+    #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=line_buffer cyclic factor=POOL_KERNEL dim=3
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=uram
+
+    data_t window_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][POOL_KERNEL];
+    #pragma HLS array_partition variable=window_buffer cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=4
+    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=uram
+
+    MaxPoolBatch:
+    for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        MaxPoolHeight:
+        for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+            MaxPoolWidth:
+            for (int width = 0; width < T_INPUT_WIDTH; width++) {
+                #pragma HLS pipeline II=1
+                // Update line buffer
+                UpdateLineBuffer:
+                for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                    for (int kh = 0; kh < POOL_KERNEL - 1; kh++) {
+                        line_buffer[batch][in_ch][kh][width] =
+                            line_buffer[batch][in_ch][kh + 1][width];
+                    }
+                    line_buffer[batch][in_ch][POOL_KERNEL - 1][width] =
+                        input[batch][in_ch][height][width];
+                }
+
+                if (height >= POOL_KERNEL - 1) {
+                    // Update window buffer
+                    UpdateWindowBuffer:
+                    for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                        for (int kh = 0; kh < POOL_KERNEL; kh++) {
+                            for (int kw = 0; kw < POOL_KERNEL - 1; kw++) {
+                                window_buffer[batch][in_ch][kh][kw] =
+                                    window_buffer[batch][in_ch][kh][kw + 1];
+                            }
+                            window_buffer[batch][in_ch][kh][POOL_KERNEL - 1] =
+                                line_buffer[batch][in_ch][kh][width];
+                        }
+                    }
+
+                    // Pooling computation
+                    if (width >= POOL_KERNEL - 1 &&
+                        (height) % POOL_STRIDE == 0 &&
+                        (width) % POOL_STRIDE == 0) {
+
+                        data_t max_vals[T_IN_CHANNELS];
+                        #pragma HLS bind_storage variable=max_vals type=ram_2p impl=bram
+
+                        MaxPoolKernel:
+                        for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
+                            max_vals[ch] = data_t(-1e9);
+
+                            for (int kh = 0; kh < POOL_KERNEL; kh++) {
+                                for (int kw = 0; kw < POOL_KERNEL; kw++) {
+                                    data_t window_val = window_buffer[batch][ch][kh][kw];
+                                    data_t max_val_temp = max_vals[ch];
+                                    max_vals[ch] = hls::fmax(max_val_temp, window_val);
+                                }
+                            }
+
+                            int out_height = (height - POOL_KERNEL) / POOL_STRIDE + 1;
+                            int out_width = (width - POOL_KERNEL) / POOL_STRIDE + 1;
+
+                            data_t output_value = max_vals[ch];
+                            output[batch][ch][out_height][out_width] = output_value;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Instantiate Conv2D
 template void Conv2D<INPUT_DEPTH, F_MAP_h, INPUT_HEIGHT, INPUT_WIDTH>(
     data_t[F_MAP_h][INPUT_DEPTH][CONV_KERNEL][CONV_KERNEL],
@@ -1036,7 +1121,7 @@ template void Conv2D<F_MAP_h, F_MAP_0, INPUT_HEIGHT, INPUT_WIDTH>(
     data_t[BATCH_SIZE][F_MAP_h][INPUT_HEIGHT][INPUT_WIDTH],
     data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH]);
 
-// Instantiate DoubleConv2D2Head for input path: chw 11 x 43 x 43 -> 32 x 43 x 43 -> 64 x 43 x 43
+// Instantiate DoubleConv2D2Head
 template void DoubleConv2D2Head<INPUT_DEPTH, F_MAP_h, F_MAP_0, INPUT_HEIGHT, INPUT_WIDTH>(
     data_t[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     data_t[F_MAP_h][INPUT_DEPTH][CONV_KERNEL][CONV_KERNEL],
@@ -1044,7 +1129,12 @@ template void DoubleConv2D2Head<INPUT_DEPTH, F_MAP_h, F_MAP_0, INPUT_HEIGHT, INP
     data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH],
     data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH]);
 
-// OutputPath
+// Instantiate MaxPool2D
+template void MaxPool2D<F_MAP_0, INPUT_HEIGHT, INPUT_WIDTH>(
+    data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t[BATCH_SIZE][F_MAP_0][(INPUT_HEIGHT/POOL_STRIDE)][(INPUT_WIDTH/POOL_STRIDE)]);
+
+// Instantiate OutputPath
 template void FinalConv1x1<IN_CHANNELS, OUT_CHANNELS>(
     data_t[OUT_CHANNELS][IN_CHANNELS][1][1][1],
     data_t[OUT_CHANNELS],

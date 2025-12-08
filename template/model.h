@@ -37,11 +37,11 @@ template<int T_IN_CHANNELS,
          int T_INPUT_WIDTH = INPUT_WIDTH>
 void DoubleConv3D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                   data_t kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                  data_t gamma1[T_IN_CHANNELS],
-                  data_t beta1[T_IN_CHANNELS],
+//                  data_t gamma1[T_IN_CHANNELS],
+//                  data_t beta1[T_IN_CHANNELS],
                   data_t kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                  data_t gamma2[T_MID_CHANNELS],
-                  data_t beta2[T_MID_CHANNELS],
+//                  data_t gamma2[T_MID_CHANNELS],
+//                  data_t beta2[T_MID_CHANNELS],
                   data_t output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]);
 
 template<int T_IN_CHANNELS,
@@ -52,11 +52,11 @@ template<int T_IN_CHANNELS,
     int T_INPUT_WIDTH = INPUT_WIDTH>
 void DoubleConv3D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                        data_t kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                       data_t gamma1[T_IN_CHANNELS],
-                       data_t beta1[T_IN_CHANNELS],
+//                       data_t gamma1[T_IN_CHANNELS],
+//                       data_t beta1[T_IN_CHANNELS],
                        data_t kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                       data_t gamma2[T_MID_CHANNELS],
-                       data_t beta2[T_MID_CHANNELS],
+//                       data_t gamma2[T_MID_CHANNELS],
+//                       data_t beta2[T_MID_CHANNELS],
                        data_t output1[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                        data_t output2[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]);
 

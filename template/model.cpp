@@ -837,14 +837,15 @@ void Conv2D(
     data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
     data_t output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
 
-    #pragma HLS array_partition variable=kernel cyclic factor=T_IN_CHANNELS dim=2 // T_IN_CHANNELS
-    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3 // K_H
-    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4 // K_W
+    #pragma HLS array_partition variable=kernel cyclic factor=T_OUT_CHANNELS dim=1
+    #pragma HLS array_partition variable=kernel cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4
 
     #pragma HLS array_partition variable=input cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS array_partition variable=input complete dim=4
 
-    #pragma HLS array_partition variable=output cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=output cyclic factor=T_OUT_CHANNELS dim=2
     #pragma HLS array_partition variable=output complete dim=4
 
 

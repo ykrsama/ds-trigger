@@ -12,9 +12,12 @@
 #include "../template/model.h"
 
 void  TestConv(
-    data_t kernel[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    data_t input[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    data_t output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+//    data_t kernel[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+//    data_t input[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+//    data_t output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+    data_t kernel[F_MAP_h][INPUT_DEPTH][CONV_KERNEL][CONV_KERNEL],
+    data_t input[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t output[BATCH_SIZE][F_MAP_h][INPUT_HEIGHT][INPUT_WIDTH]
 );
 
 #endif // TEST_CONV3D_H

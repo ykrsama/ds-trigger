@@ -1,9 +1,12 @@
 #include "test_conv.h"
 
 void  TestConv(
-    data_t kernel[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-    data_t input[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
-    data_t output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+//    data_t kernel[F_MAP_0][F_MAP_h][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
+//    data_t input[BATCH_SIZE][F_MAP_h][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+//    data_t output[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]
+    data_t kernel[F_MAP_h][INPUT_DEPTH][CONV_KERNEL][CONV_KERNEL],
+    data_t input[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t output[BATCH_SIZE][F_MAP_h][INPUT_HEIGHT][INPUT_WIDTH]
 ) {
     #pragma HLS interface s_axilite port=return
 
@@ -13,7 +16,10 @@ void  TestConv(
 
     #pragma HLS dataflow
 
-    Conv3D<F_MAP_h, F_MAP_0>(
+//    Conv3D<F_MAP_h, F_MAP_0>(
+//        kernel, input, output
+//    );
+    Conv2D<INPUT_DEPTH, F_MAP_h>(
         kernel, input, output
     );
 }

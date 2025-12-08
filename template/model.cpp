@@ -829,19 +829,24 @@ template void FinalConv1x1<F_MAP_0, OUT_CHANNELS>(
 // Output: finalconv cdhw 5 x 11 x 43 x 43 (OUT_CHANNELS, INPUT_DEPTH, INPUT_HEIGHT, INPUT_WIDTH)
 
 template<int T_IN_CHANNELS,
-    int T_OUT_CHANNELS,
-    int T_INPUT_HEIGHT,
-    int T_INPUT_WIDTH>
+         int T_OUT_CHANNELS,
+         int T_INPUT_HEIGHT,
+         int T_INPUT_WIDTH>
 void Conv2D(
     data_t kernel[T_OUT_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL],
     data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
     data_t output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
 
-    #pragma HLS array_partition variable=kernel complete dim=2 // T_IN_CHANNELS
-    #pragma HLS array_partition variable=kernel complete dim=3 // K_H
-    #pragma HLS array_partition variable=kernel complete dim=4 // K_W
-    #pragma HLS array_partition variable=input complete dim=2
-    #pragma HLS array_partition variable=output complete dim=2
+    #pragma HLS array_partition variable=kernel cyclic factor=T_IN_CHANNELS dim=2 // T_IN_CHANNELS
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=3 // K_H
+    #pragma HLS array_partition variable=kernel cyclic factor=CONV_KERNEL dim=4 // K_W
+
+    #pragma HLS array_partition variable=input cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=input complete dim=4
+
+    #pragma HLS array_partition variable=output cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=output complete dim=4
+
 
     // Padded size calculation
     const int PADDED_HEIGHT = T_INPUT_HEIGHT + 2 * CONV_PADDING;
@@ -849,26 +854,28 @@ void Conv2D(
 
     // Padding
     data_t padded_input[BATCH_SIZE][T_IN_CHANNELS][PADDED_HEIGHT][PADDED_WIDTH];
-    #pragma HLS stream variable=padded_input type=fifo
-    #pragma HLS bind_storage variable=padded_input type=ram_t2p impl=bram
+    #pragma HLS array_partition variable=padded_input cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=padded_input complete dim=4
+    #pragma HLS bind_storage variable=padded_input type=ram_2p impl=lutram
 
     // Filling the padded input buffer
     PaddingBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         PaddingHeight:
-        for (int height = 0; height < PADDED_HEIGHT; height++) {
+            for (int height = 0; height < PADDED_HEIGHT; height++) {
+            #pragma HLS pipeline II=1
             PaddingWidth:
             for (int width = 0; width < PADDED_WIDTH; width++) {
-                // Parallelize channel access
                 PaddingChan:
                 for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
+                    data_t pad_value = (data_t) 0.0;
                     int orig_height = height - CONV_PADDING;
                     int orig_width = width - CONV_PADDING;
 
-                    bool valid_pixel = (orig_height >= 0 && orig_height < T_INPUT_HEIGHT &&
-                                        orig_width >= 0 && orig_width < T_INPUT_WIDTH);
-
-                    data_t pad_value = valid_pixel ? input[batch][in_ch][orig_height][orig_width] : (data_t) 0.0;
+                    if (orig_height >= 0 && orig_height < T_INPUT_HEIGHT &&
+                        orig_width >= 0 && orig_width < T_INPUT_WIDTH) {
+                        pad_value = input[batch][in_ch][orig_height][orig_width];
+                    }
                     padded_input[batch][in_ch][height][width] = pad_value;
                 }
             }
@@ -878,21 +885,23 @@ void Conv2D(
 
     // Line Buffer
     data_t line_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][PADDED_WIDTH];
-    //#pragma HLS array_partition variable=line_buffer complete dim=2
-    #pragma HLS array_partition variable=line_buffer complete dim=3
-    #pragma HLS bind_storage variable=line_buffer type=ram_t2p impl=bram
+    #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=line_buffer cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=line_buffer complete dim=4
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
     // Window Buffer
     data_t window_buffer[BATCH_SIZE][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL];
-    #pragma HLS array_partition variable=window_buffer complete dim=2
-    #pragma HLS array_partition variable=window_buffer complete dim=3
-    #pragma HLS array_partition variable=window_buffer complete dim=4
+    #pragma HLS array_partition variable=window_buffer cyclic factor=T_IN_CHANNELS dim=2
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=3
+    #pragma HLS array_partition variable=window_buffer cyclic factor=CONV_KERNEL dim=4
     #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
 
     ConvBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         ConvHeight:
         for (int height = 0; height < PADDED_HEIGHT; height++) {
+            #pragma HLS pipeline II=1
             ConvWidth:
             for (int width = 0; width < PADDED_WIDTH; width++) {
                 UpdateLineBuffer:

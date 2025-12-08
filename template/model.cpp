@@ -306,29 +306,31 @@ template<int T_IN_CHANNELS,
          int T_INPUT_WIDTH>
 void DoubleConv3D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                   data_t kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                  data_t gamma1[T_IN_CHANNELS],
-                  data_t beta1[T_IN_CHANNELS],
+//                  data_t gamma1[T_IN_CHANNELS],
+//                  data_t beta1[T_IN_CHANNELS],
                   data_t kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                  data_t gamma2[T_MID_CHANNELS],
-                  data_t beta2[T_MID_CHANNELS],
+//                  data_t gamma2[T_MID_CHANNELS],
+//                  data_t beta2[T_MID_CHANNELS],
                   data_t output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
-    // buffers
-    data_t gn1_out[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=gn1_out type=fifo
-    #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
+//    // buffers
+//    data_t gn1_out[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
+//    #pragma HLS stream variable=gn1_out type=fifo
+//    #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
     data_t conv1_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=conv1_out type=fifo
+    //#pragma HLS stream variable=conv1_out type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
 
-    data_t gn2_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=gn2_out type=fifo
-    #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
+//    data_t gn2_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
+//    #pragma HLS stream variable=gn2_out type=fifo
+//    #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
 
-    GroupNorm3D<T_IN_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(input, gamma1, beta1, gn1_out);
-    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel1, gn1_out, conv1_out);
-    GroupNorm3D<T_MID_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(conv1_out, gamma2, beta2, gn2_out);
-    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel2, gn2_out, output);
+//    GroupNorm3D<T_IN_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(input, gamma1, beta1, gn1_out);
+//    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel1, gn1_out, conv1_out);
+//    GroupNorm3D<T_MID_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(conv1_out, gamma2, beta2, gn2_out);
+//    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel2, gn2_out, output);
+    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel1, input, conv1_out);
+    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel2, conv1_out, output);
 }
 
 template<int T_IN_CHANNELS,
@@ -339,43 +341,61 @@ template<int T_IN_CHANNELS,
          int T_INPUT_WIDTH>
 void DoubleConv3D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                        data_t kernel1[T_MID_CHANNELS][T_IN_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                       data_t gamma1[T_IN_CHANNELS],
-                       data_t beta1[T_IN_CHANNELS],
+//                       data_t gamma1[T_IN_CHANNELS],
+//                       data_t beta1[T_IN_CHANNELS],
                        data_t kernel2[T_OUT_CHANNELS][T_MID_CHANNELS][CONV_KERNEL][CONV_KERNEL][CONV_KERNEL],
-                       data_t gamma2[T_MID_CHANNELS],
-                       data_t beta2[T_MID_CHANNELS],
+//                       data_t gamma2[T_MID_CHANNELS],
+//                       data_t beta2[T_MID_CHANNELS],
                        data_t output1[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                        data_t output2[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH]) {
-    // buffers
-    data_t gn1_out[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=gn1_out type=fifo
-    #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
+//    // buffers
+//    data_t gn1_out[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
+//    #pragma HLS stream variable=gn1_out type=fifo
+//    #pragma HLS bind_storage variable=gn1_out type=ram_t2p impl=bram
 
     data_t conv1_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=conv1_out type=fifo
+    //#pragma HLS stream variable=conv1_out type=fifo
     #pragma HLS bind_storage variable=conv1_out type=ram_t2p impl=bram
 
-    data_t gn2_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=gn2_out type=fifo
-    #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
+//    data_t gn2_out[BATCH_SIZE][T_MID_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
+//    #pragma HLS stream variable=gn2_out type=fifo
+//    #pragma HLS bind_storage variable=gn2_out type=ram_t2p impl=bram
 
     // Temporary output buffer
     data_t temp_output[BATCH_SIZE][T_OUT_CHANNELS][T_INPUT_DEPTH][T_INPUT_HEIGHT][T_INPUT_WIDTH];
-    #pragma HLS stream variable=temp_output type=fifo
+    //#pragma HLS stream variable=temp_output type=fifo
+    #pragma HLS array_partition variable=temp_output cyclic factor=T_OUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=temp_output complete dim=5
     #pragma HLS bind_storage variable=temp_output type=ram_t2p impl=bram
 
-    GroupNorm3D<T_IN_CHANNELS>(input, gamma1, beta1, gn1_out);
-    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS>(kernel1, gn1_out, conv1_out);
-    GroupNorm3D<T_MID_CHANNELS>(conv1_out, gamma2, beta2, gn2_out);
-    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS>(kernel2, gn2_out, temp_output);
+    #pragma HLS array_partition variable=output1 cyclic factor=T_OUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=output1 complete dim=5
+
+    #pragma HLS array_partition variable=output2 cyclic factor=T_OUT_CHANNELS dim=2
+    #pragma HLS array_partition variable=output2 complete dim=5
+
+//    GroupNorm3D<T_IN_CHANNELS>(input, gamma1, beta1, gn1_out);
+//    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS>(kernel1, gn1_out, conv1_out);
+//    GroupNorm3D<T_MID_CHANNELS>(conv1_out, gamma2, beta2, gn2_out);
+//    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS>(kernel2, gn2_out, temp_output);
+
+    Conv3D<T_IN_CHANNELS, T_MID_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel1, input, conv1_out);
+    Conv3D<T_MID_CHANNELS, T_OUT_CHANNELS, T_INPUT_DEPTH, T_INPUT_HEIGHT, T_INPUT_WIDTH>(kernel2, conv1_out, temp_output);
 
     // Duplicate output to both streams for skip connection
+    DupOutputBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int ch = 0; ch < T_OUT_CHANNELS; ch++) {
-            for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
-                for (int height = 0; height < T_INPUT_HEIGHT; height++) {
-                    #pragma HLS pipeline II=1
-                    for (int width = 0; width < T_INPUT_WIDTH; width++) {
+        DupOutputDepth:
+        for (int depth = 0; depth < T_INPUT_DEPTH; depth++) {
+            DupOutputHeight:
+            for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+                #pragma HLS pipeline II=1
+                DupOutputWidth:
+                for (int width = 0; width < T_INPUT_WIDTH; width++) {
+                    #pragma HLS unroll
+                    DupOutputChan:
+                    for (int ch = 0; ch < T_OUT_CHANNELS; ch++) {
+                        #pragma HLS unroll
                         data_t value = temp_output[batch][ch][depth][height][width];
                         output1[batch][ch][depth][height][width] = value;
                         output2[batch][ch][depth][height][width] = value;

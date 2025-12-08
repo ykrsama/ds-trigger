@@ -409,29 +409,39 @@ void DoubleConv3D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_DEPTH][T_
 template<int T_IN_CHANNELS>
 void MaxPool3D(data_t input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
                data_t output[BATCH_SIZE][T_IN_CHANNELS][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]) {
+    #pragma HLS array_partition variable=input cyclic factor=T_IN_CHANNELS dim=2  // Needed: UpdateCubeBuffer
+    #pragma HLS array_partition variable=output cyclic factor=T_IN_CHANNELS dim=2
+
     // Buffer definitions
     data_t cube_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][INPUT_HEIGHT][INPUT_WIDTH];
-    #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=lutram
+    #pragma HLS array_partition variable=cube_buffer cyclic factor=T_IN_CHANNELS dim=2  // Needed: UpdateCubeBuffer
+    #pragma HLS array_partition variable=cube_buffer cyclic factor=POOL_KERNEL dim=3  // Needed: UpdateCubeBuffer
+    #pragma HLS bind_storage variable=cube_buffer type=ram_2p impl=uram
 
     data_t line_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][POOL_KERNEL][INPUT_WIDTH];
-    #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=2
-    #pragma HLS array_partition variable=line_buffer complete dim=3
-    #pragma HLS array_partition variable=line_buffer complete dim=4
-    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
+    #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=2  // Needed: UpdateLineBuffer
+    #pragma HLS array_partition variable=line_buffer cyclic factor=POOL_KERNEL dim=3  // Needed: UpdateLineBuffer
+    #pragma HLS array_partition variable=line_buffer cyclic factor=POOL_KERNEL dim=4  // Needed: UpdateLineBuffer
+    #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=uram
 
     data_t window_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][POOL_KERNEL][POOL_KERNEL];
-    #pragma HLS array_partition variable=window_buffer cyclic factor=T_IN_CHANNELS dim=2
-    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=3
-    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=4
-    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=5
-    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=lutram
+    #pragma HLS array_partition variable=window_buffer cyclic factor=T_IN_CHANNELS dim=2  // Needed: UpdateWindowBuffer
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=3  // Needed: UpdateWindowBuffer
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=4  // Needed: UpdateWindowBuffer
+    #pragma HLS array_partition variable=window_buffer cyclic factor=POOL_KERNEL dim=5  // Needed: UpdateWindowBuffer
+    #pragma HLS bind_storage variable=window_buffer type=ram_2p impl=uram
 
+    MaxPoolBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
+        MaxPoolDepth:
         for (int depth = 0; depth < INPUT_DEPTH; depth++) {
+            MaxPoolHeight:
             for (int height = 0; height < INPUT_HEIGHT; height++) {
+                MaxPoolWidth:
                 for (int width = 0; width < INPUT_WIDTH; width++) {
-
+                    #pragma HLS pipeline II=1
                     // Update cube buffer
+                    UpdateCubeBuffer:
                     for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                         for (int kd = 0; kd < POOL_KERNEL - 1; kd++) {
                             cube_buffer[batch][in_ch][kd][height][width] =
@@ -443,6 +453,7 @@ void MaxPool3D(data_t input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT
 
                     if (depth >= POOL_KERNEL - 1) {
                         // Update line buffer
+                        UpdateLineBuffer:
                         for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                             for (int kd = 0; kd < POOL_KERNEL; kd++) {
                                 for (int kh = 0; kh < POOL_KERNEL - 1; kh++) {
@@ -456,6 +467,7 @@ void MaxPool3D(data_t input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT
 
                         if (height >= POOL_KERNEL - 1) {
                             // Update window buffer
+                            UpdateWindowBuffer:
                             for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                                 for (int kd = 0; kd < POOL_KERNEL; kd++) {
                                     for (int kh = 0; kh < POOL_KERNEL; kh++) {
@@ -476,10 +488,10 @@ void MaxPool3D(data_t input[BATCH_SIZE][T_IN_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT
                                 (width) % POOL_STRIDE == 0) {
 
                                 data_t max_vals[T_IN_CHANNELS];
-                                #pragma HLS bind_storage variable=max_vals type=ram_t2p impl=bram
+                                #pragma HLS bind_storage variable=max_vals type=ram_2p impl=bram
 
+                                MaxPoolKernel:
                                 for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
-                                    #pragma HLS pipeline II=1
                                     max_vals[ch] = data_t(-1e9);
 
                                     for (int kd = 0; kd < POOL_KERNEL; kd++) {

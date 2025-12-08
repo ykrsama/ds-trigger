@@ -5,13 +5,13 @@
 #define BATCH_SIZE 1
 #define IN_CHANNELS 1
 #define OUT_CHANNELS 5
-#define F_MAP_0 32
-#define F_MAP_1 64
+#define F_MAP_0 64
+#define F_MAP_1 128
 
 // Input dimensions (configurable based on dataset)
-#define INPUT_DEPTH 43
+#define INPUT_DEPTH 11
 #define INPUT_HEIGHT 43
-#define INPUT_WIDTH 11
+#define INPUT_WIDTH 43
 
 // Convolution parameters
 #define CONV_KERNEL 3

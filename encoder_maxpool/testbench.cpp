@@ -5,8 +5,8 @@
 
 int main() {
     // Initialize test data
-    float input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
-    float output[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
+    data_t input[BATCH_SIZE][F_MAP_0][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH];
+    data_t output[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_DEPTH][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
 
     // Seed random number generator
     srand(time(NULL));
@@ -17,7 +17,7 @@ int main() {
             for (int d = 0; d < INPUT_DEPTH; d++) {
                 for (int h = 0; h < INPUT_HEIGHT; h++) {
                     for (int w = 0; w < INPUT_WIDTH; w++) {
-                        input[b][c][d][h][w] = (float)rand() / RAND_MAX - 0.5f; // Random values between -0.5 and 0.5
+                        input[b][c][d][h][w] = (data_t)rand() / RAND_MAX -(data_t) 0.5; // Random values between -0.5 and 0.5
                     }
                 }
             }
@@ -30,7 +30,7 @@ int main() {
             for (int d = 0; d < POOL_OUTPUT_DEPTH; d++) {
                 for (int h = 0; h < POOL_OUTPUT_HEIGHT; h++) {
                     for (int w = 0; w < POOL_OUTPUT_WIDTH; w++) {
-                        output[b][c][d][h][w] = 0.0f;
+                        output[b][c][d][h][w] = (data_t)0.0;
                     }
                 }
             }

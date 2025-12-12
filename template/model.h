@@ -111,4 +111,11 @@ template<int T_IN_CHANNELS,
 void MaxPool2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
                data_t output[BATCH_SIZE][T_IN_CHANNELS][(T_INPUT_HEIGHT/POOL_STRIDE)][(T_INPUT_WIDTH/POOL_STRIDE)]);
 
+// Upsample2D
+template<int T_IN_CHANNELS,
+         int T_INPUT_HEIGHT,
+         int T_INPUT_WIDTH>
+void Upsample2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
+                data_t output[BATCH_SIZE][T_IN_CHANNELS][(T_INPUT_HEIGHT*POOL_STRIDE)][(T_INPUT_WIDTH*POOL_STRIDE)]);
+
 #endif // MODEL_H

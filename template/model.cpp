@@ -1032,7 +1032,7 @@ void MaxPool2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][INPUT_HEIGHT][INPUT_WIDTH
     #pragma HLS array_partition variable=output cyclic factor=T_IN_CHANNELS dim=2
 
     // Buffer definitions
-    data_t line_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][T_INPUT_WIDTH];
+    data_t line_buffer[BATCH_SIZE][T_IN_CHANNELS][POOL_KERNEL][INPUT_WIDTH];
     #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS array_partition variable=line_buffer cyclic factor=POOL_KERNEL dim=3
     #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=uram
@@ -1108,7 +1108,7 @@ void MaxPool2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][INPUT_HEIGHT][INPUT_WIDTH
     }
 }
 
-template<int T_IN_CHANNELS
+template<int T_IN_CHANNELS>
 void Upsample2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
                 data_t output[BATCH_SIZE][T_IN_CHANNELS][INPUT_HEIGHT][INPUT_WIDTH]) {
     #pragma HLS array_partition variable=input cyclic factor=T_IN_CHANNELS dim=2
@@ -1202,12 +1202,12 @@ template void DoubleConv2D2Head<INPUT_DEPTH, F_MAP_h, F_MAP_0, INPUT_HEIGHT, INP
     data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH]);
 
 // Instantiate MaxPool2D
-template void MaxPool2D<F_MAP_0, INPUT_HEIGHT, INPUT_WIDTH>(
+template void MaxPool2D<F_MAP_0>(
     data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH],
     data_t[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]);
 
 // Instantiate Upsample2D
-template void Upsample2D<F_MAP_1, POOL_OUTPUT_HEIGHT, POOL_OUTPUT_WIDTH>(
+template void Upsample2D<F_MAP_1>(
     data_t[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
     data_t[BATCH_SIZE][F_MAP_1][INPUT_HEIGHT][INPUT_WIDTH]);
 

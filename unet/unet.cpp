@@ -32,11 +32,11 @@ void UNet(data_t input[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
     #pragma HLS bind_storage variable=encoder_output type=ram_t2p impl=bram
     #pragma HLS array_partition variable=encoder_output cyclic factor=F_MAP_0 dim=2
 
-    data_t pooled_output[BATCH_SIZE][F_MAP_0][(INPUT_HEIGHT/POOL_STRIDE)][(INPUT_WIDTH/POOL_STRIDE)];
+    data_t pooled_output[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
     #pragma HLS bind_storage variable=pooled_output type=ram_t2p impl=bram
     #pragma HLS array_partition variable=pooled_output cyclic factor=F_MAP_0 dim=2
 
-    data_t encoder_conv_output[BATCH_SIZE][F_MAP_1][(INPUT_HEIGHT/POOL_STRIDE)][(INPUT_WIDTH/POOL_STRIDE)];
+    data_t encoder_conv_output[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH];
     #pragma HLS bind_storage variable=encoder_conv_output type=ram_t2p impl=bram
     #pragma HLS array_partition variable=encoder_conv_output cyclic factor=F_MAP_1 dim=2
 
@@ -61,14 +61,14 @@ void UNet(data_t input[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
         input, conv1_kernel1, conv1_kernel2, skip_connection, encoder_output);
 
     // Encode: MaxPool2D chw F_MAP_0 x 43 x 43 -> F_MAP_0 x POOL_OUTPUT_HEIGHT x POOL_OUTPUT_WIDTH
-    MaxPool2D<F_MAP_0, INPUT_HEIGHT, INPUT_WIDTH>(encoder_output, pooled_output);
+    MaxPool2D<F_MAP_0>(encoder_output, pooled_output);
 
     // Encode: DoubleConv2D chw F_MAP_0 x POOL_OUTPUT_HEIGHT x POOL_OUTPUT_WIDTH -> F_MAP_1 x POOL_OUTPUT_HEIGHT x POOL_OUTPUT_WIDTH
-    DoubleConv2D<F_MAP_0, F_MAP_0, F_MAP_1, (INPUT_HEIGHT/POOL_STRIDE), (INPUT_WIDTH/POOL_STRIDE)>(
+    DoubleConv2D<F_MAP_0, F_MAP_0, F_MAP_1, POOL_OUTPUT_HEIGHT, POOL_OUTPUT_WIDTH>(
         pooled_output, conv2_kernel1, conv2_kernel2, encoder_conv_output);
 
     // Decode: Upsample2D chw F_MAP_1 x POOL_OUTPUT_HEIGHT x POOL_OUTPUT_WIDTH -> F_MAP_1 x 43 x 43
-    Upsample2D<F_MAP_1, (INPUT_HEIGHT/POOL_STRIDE), (INPUT_WIDTH/POOL_STRIDE)>(
+    Upsample2D<F_MAP_1>(
         encoder_conv_output, upsampled_output);
 
     // Decode: Concat2D chw (F_MAP_0 x 43 x 43 + F_MAP_1 x 43 x 43) -> CONCAT_CHANNELS x 43 x 43

@@ -195,3 +195,36 @@ void ReshapeOutput(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_HEIGHT][T_WIDTH],
         }
     }
 }
+
+
+// Template instantiations for DoubleConv2D
+template void DoubleConv2D<F_MAP_0, F_MAP_0, F_MAP_1, POOL_OUTPUT_HEIGHT, POOL_OUTPUT_WIDTH>(
+    data_t[BATCH_SIZE][F_MAP_0][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+    data_t[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL],
+    data_t[F_MAP_1][F_MAP_0][CONV_KERNEL][CONV_KERNEL],
+    data_t[BATCH_SIZE][F_MAP_1][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]);
+
+template void DoubleConv2D<CONCAT_CHANNELS, F_MAP_0, F_MAP_0, INPUT_HEIGHT, INPUT_WIDTH>(
+    data_t[BATCH_SIZE][CONCAT_CHANNELS][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t[F_MAP_0][CONCAT_CHANNELS][CONV_KERNEL][CONV_KERNEL],
+    data_t[F_MAP_0][F_MAP_0][CONV_KERNEL][CONV_KERNEL],
+    data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH]);
+
+
+// Template instantiations for ReshapeOutput (our implementation)
+template void ReshapeOutput<(OUT_CHANNELS * INPUT_DEPTH), OUT_CHANNELS, INPUT_DEPTH, INPUT_HEIGHT, INPUT_WIDTH>(
+    data_t[BATCH_SIZE][OUT_CHANNELS * INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
+
+// Template instantiations for Concat2D (our implementation)
+template void Concat2D<F_MAP_0, F_MAP_1, CONCAT_CHANNELS, INPUT_HEIGHT, INPUT_WIDTH>(
+    data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t[BATCH_SIZE][F_MAP_1][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t[BATCH_SIZE][CONCAT_CHANNELS][INPUT_HEIGHT][INPUT_WIDTH]);
+
+// Template instantiations for FinalConv2D (our implementation)
+template void FinalConv2D<F_MAP_0, (OUT_CHANNELS * INPUT_DEPTH), INPUT_HEIGHT, INPUT_WIDTH>(
+    data_t[OUT_CHANNELS * INPUT_DEPTH][F_MAP_0][1][1][1],
+    data_t[OUT_CHANNELS * INPUT_DEPTH],
+    data_t[BATCH_SIZE][F_MAP_0][INPUT_HEIGHT][INPUT_WIDTH],
+    data_t[BATCH_SIZE][OUT_CHANNELS * INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);

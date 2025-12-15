@@ -1025,11 +1025,9 @@ void DoubleConv2D2Head(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T
 }
 
 
-template<int T_IN_CHANNELS,
-         int T_INPUT_HEIGHT,
-         int T_INPUT_WIDTH>
-void MaxPool2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
-               data_t output[BATCH_SIZE][T_IN_CHANNELS][(T_INPUT_HEIGHT/POOL_STRIDE)][(T_INPUT_WIDTH/POOL_STRIDE)]) {
+template<int T_IN_CHANNELS>
+void MaxPool2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][INPUT_HEIGHT][INPUT_WIDTH],
+               data_t output[BATCH_SIZE][T_IN_CHANNELS][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH]) {
     #pragma HLS array_partition variable=input cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS array_partition variable=output cyclic factor=T_IN_CHANNELS dim=2
 
@@ -1048,9 +1046,9 @@ void MaxPool2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_W
     MaxPoolBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         MaxPoolHeight:
-        for (int height = 0; height < T_INPUT_HEIGHT; height++) {
+        for (int height = 0; height < INPUT_HEIGHT; height++) {
             MaxPoolWidth:
-            for (int width = 0; width < T_INPUT_WIDTH; width++) {
+            for (int width = 0; width < INPUT_WIDTH; width++) {
                 #pragma HLS pipeline II=1
                 // Update line buffer
                 UpdateLineBuffer:
@@ -1110,28 +1108,22 @@ void MaxPool2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_W
     }
 }
 
-template<int T_IN_CHANNELS,
-         int T_INPUT_HEIGHT,
-         int T_INPUT_WIDTH>
-void Upsample2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_WIDTH],
-                data_t output[BATCH_SIZE][T_IN_CHANNELS][(T_INPUT_HEIGHT*POOL_STRIDE)][(T_INPUT_WIDTH*POOL_STRIDE)]) {
+template<int T_IN_CHANNELS
+void Upsample2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][POOL_OUTPUT_HEIGHT][POOL_OUTPUT_WIDTH],
+                data_t output[BATCH_SIZE][T_IN_CHANNELS][INPUT_HEIGHT][INPUT_WIDTH]) {
     #pragma HLS array_partition variable=input cyclic factor=T_IN_CHANNELS dim=2
     #pragma HLS array_partition variable=output cyclic factor=T_IN_CHANNELS dim=2
 
     // Line buffer for streaming data access pattern
-    data_t line_buffer[T_IN_CHANNELS][T_INPUT_WIDTH];
+    data_t line_buffer[T_IN_CHANNELS][POOL_OUTPUT_WIDTH];
     #pragma HLS array_partition variable=line_buffer cyclic factor=T_IN_CHANNELS dim=1
     #pragma HLS bind_storage variable=line_buffer type=ram_2p impl=lutram
 
-    // Output dimensions
-    const int OUTPUT_HEIGHT = T_INPUT_HEIGHT * POOL_STRIDE;
-    const int OUTPUT_WIDTH = T_INPUT_WIDTH * POOL_STRIDE;
-
     // Main processing loops
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
-        for (int src_h = 0; src_h < T_INPUT_HEIGHT; src_h++) {
+        for (int src_h = 0; src_h < POOL_OUTPUT_HEIGHT; src_h++) {
             // Load input line into buffer for reuse
-            for (int src_w = 0; src_w < T_INPUT_WIDTH; src_w++) {
+            for (int src_w = 0; src_w < POOL_OUTPUT_WIDTH; src_w++) {
                 #pragma HLS pipeline II=1
                 for (int ch = 0; ch < T_IN_CHANNELS; ch++) {
                     #pragma HLS unroll
@@ -1143,8 +1135,8 @@ void Upsample2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_
             for (int h_offset = 0; h_offset < POOL_STRIDE; h_offset++) {
                 int out_h = src_h * POOL_STRIDE + h_offset;
 
-                if (out_h < OUTPUT_HEIGHT) {
-                    for (int src_w = 0; src_w < T_INPUT_WIDTH; src_w++) {
+                if (out_h < INPUT_HEIGHT) {
+                    for (int src_w = 0; src_w < POOL_OUTPUT_WIDTH; src_w++) {
                         #pragma HLS pipeline II=1
 
                         int out_w_base = src_w * POOL_STRIDE;
@@ -1158,7 +1150,7 @@ void Upsample2D(data_t input[BATCH_SIZE][T_IN_CHANNELS][T_INPUT_HEIGHT][T_INPUT_
                             // Generate 2x upsampling in width dimension
                             for (int w_offset = 0; w_offset < POOL_STRIDE; w_offset++) {
                                 int out_w = out_w_base + w_offset;
-                                if (out_w < OUTPUT_WIDTH) {
+                                if (out_w < INPUT_WIDTH) {
                                     output[batch][ch][out_h][out_w] = pixel_val;
                                 }
                             }

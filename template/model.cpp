@@ -808,24 +808,24 @@ template void FinalConv1x1<F_MAP_0, OUT_CHANNELS>(
     data_t[BATCH_SIZE][OUT_CHANNELS][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH]);
 
 
-//New
+//New UNet Path
 
 // Input
-// (in Conv2d, chw refer to INPUT_DEPTH, INPUT_HEIGHT, INPUT_WIDTH)
-// DoubleConv2D2Head chw 11 x 43 x 43 -> 32 x 43 x 43 -> 64 x 43 x 43
+// (in Conv2d, chw refer to INPUT_DEPTH * IN_CHANNELS(11), INPUT_HEIGHT(43), INPUT_WIDTH(43))
+// DoubleConv2D2Head chw 11 x 43 x 43 -> F_MAP_h x 43 x 43 -> F_MAP_0 x 43 x 43
 
 // Encode
-// MaxPool2D chw 64 x 43 x 43 -> 64 x 21 x 21
-// DoubleConv2D chw 64 x 21 x 21 -> 64 x 21 x 21 -> 128 x 21 x 21
+// MaxPool2D chw F_MAP_0 x 43 x 43 -> F_MAP_0 x POOL_OUTPUT_HEIGHT x POOL_OUTPUT_WIDTH
+// DoubleConv2D chw F_MAP_0 x POOL_OUTPUT_HEIGHT x POOL_OUTPUT_WIDTH -> F_MAP_0 x POOL_OUTPUT_HEIGHT x POOL_OUTPUT_WIDTH -> F_MAP_1 x POOL_OUTPUT_HEIGHT x POOL_OUTPUT_WIDTH
 
 // Decode
-// Upsample2D chw 128 x 21 x 21 -> 128 x 43 x 43
-// Concat2D chw (64 x 43 x 43 + 128 x 43 x 43) -> 192 x 43 x 43
-// DoubleConv2D chw 192 x 43 x 43 -> 64 x 43 x 43 -> 64 x 43 x 43
+// Upsample2D chw F_MAP_1 x POOL_OUTPUT_HEIGHT x POOL_OUTPUT_WIDTH -> F_MAP_1 x 43 x 43
+// Concat2D chw (F_MAP_0 x 43 x 43 + F_MAP_1 x 43 x 43) -> CONCAT_CHANNELS x 43 x 43
+// DoubleConv2D chw CONCAT_CHANNELS x 43 x 43 -> F_MAP_0 x 43 x 43 -> F_MAP_0 x 43 x 43
 
 // Output
-// Output: finalconv cdhw 64 x 43 x 43 -> 55 x 43 x 43 (OUT_CHANNELS, INPUT_DEPTH, INPUT_HEIGHT, INPUT_WIDTH)
-// reshape: cdhw  5 x 11 x 43 x 43
+// Output: finalconv cdhw F_MAP_0 x 43 x 43 -> 55 x 43 x 43 (OUT_CHANNELS * INPUT_DEPTH, INPUT_DEPTH, INPUT_HEIGHT, INPUT_WIDTH)
+// reshape: cdhw  OUT_CHANNELS x 11 x 43 x 43
 
 template<int T_IN_CHANNELS,
          int T_OUT_CHANNELS,
@@ -862,7 +862,7 @@ void Conv2D(
     PaddingBatch:
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         PaddingHeight:
-            for (int height = 0; height < PADDED_HEIGHT; height++) {
+        for (int height = 0; height < PADDED_HEIGHT; height++) {
             #pragma HLS pipeline II=1
             PaddingWidth:
             for (int width = 0; width < PADDED_WIDTH; width++) {
@@ -901,9 +901,9 @@ void Conv2D(
     for (int batch = 0; batch < BATCH_SIZE; batch++) {
         ConvHeight:
         for (int height = 0; height < PADDED_HEIGHT; height++) {
-            #pragma HLS pipeline II=1
             ConvWidth:
             for (int width = 0; width < PADDED_WIDTH; width++) {
+                #pragma HLS pipeline II=1
                 UpdateLineBuffer:
                 for (int in_ch = 0; in_ch < T_IN_CHANNELS; in_ch++) {
                     // Shift the rows up (K-1 shifts)

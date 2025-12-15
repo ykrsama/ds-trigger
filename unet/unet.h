@@ -1,12 +1,7 @@
 #ifndef UNET_H
 #define UNET_H
 
-#include "../template/model_parameter.h"
-#include <ap_fixed.h>
-#include <hls_math.h>
-
-// Data type definition
-typedef ap_fixed<16, 6> data_t;
+#include "../template/model.h"
 
 // Top function declaration
 void UNet(data_t input[BATCH_SIZE][INPUT_DEPTH][INPUT_HEIGHT][INPUT_WIDTH],

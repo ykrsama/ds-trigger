@@ -1,0 +1,196 @@
+{
+  "checkpoint": "/root/code/pytorch-3dunet/resources/ecal/checkpoint_16_pooled_554_20261014_065153/best_checkpoint.pytorch",
+  "checkpoint_sha256": "c13af93bd7e8e7b3bc47fe9a6efe31d617a30b6017ec885ba288f21d08f736c5",
+  "config": "/root/code/pytorch-3dunet/resources/ecal/checkpoint_16_pooled_554_20261014_065153/train_config.yaml",
+  "model": {
+    "name": "UNet3DFPGA",
+    "in_channels": 1,
+    "out_channels": 5,
+    "layer_order": "cr",
+    "f_maps": [
+      16,
+      32
+    ],
+    "depth_channels": 4,
+    "num_groups": 8,
+    "final_sigmoid": false,
+    "is_segmentation": true
+  },
+  "best_eval_score": 0.8264551448597803,
+  "num_iterations": 125000,
+  "constants": {
+    "INPUT_CHANNELS": 1,
+    "INPUT_DEPTH": 4,
+    "INPUT_HEIGHT": 5,
+    "INPUT_WIDTH": 5,
+    "CLASS_COUNT": 5,
+    "FINAL_CHANNELS": 20,
+    "FEATURES_0": 16,
+    "FEATURES_1": 32,
+    "PARAMETER_COUNT": 18012
+  },
+  "arrays": [
+    {
+      "name": "conv1_kernel1",
+      "checkpoint_key": "input_conv.SingleConv1.conv.weight",
+      "shape": [
+        8,
+        4,
+        3,
+        3
+      ],
+      "count": 288,
+      "min": -15.151090621948242,
+      "max": 0.12126369774341583
+    },
+    {
+      "name": "conv1_bias1",
+      "checkpoint_key": "input_conv.SingleConv1.conv.bias",
+      "shape": [
+        8
+      ],
+      "count": 8,
+      "min": 0.07503090798854828,
+      "max": 0.6292017698287964
+    },
+    {
+      "name": "conv1_kernel2",
+      "checkpoint_key": "input_conv.SingleConv2.conv.weight",
+      "shape": [
+        16,
+        8,
+        3,
+        3
+      ],
+      "count": 1152,
+      "min": -2.7466702461242676,
+      "max": 3.343282461166382
+    },
+    {
+      "name": "conv1_bias2",
+      "checkpoint_key": "input_conv.SingleConv2.conv.bias",
+      "shape": [
+        16
+      ],
+      "count": 16,
+      "min": 0.13259156048297882,
+      "max": 0.9758846759796143
+    },
+    {
+      "name": "conv2_kernel1",
+      "checkpoint_key": "encoder.1.SingleConv1.conv.weight",
+      "shape": [
+        16,
+        16,
+        3,
+        3
+      ],
+      "count": 2304,
+      "min": -0.47955814003944397,
+      "max": 0.7288236618041992
+    },
+    {
+      "name": "conv2_bias1",
+      "checkpoint_key": "encoder.1.SingleConv1.conv.bias",
+      "shape": [
+        16
+      ],
+      "count": 16,
+      "min": -0.6317738890647888,
+      "max": 1.0241434574127197
+    },
+    {
+      "name": "conv2_kernel2",
+      "checkpoint_key": "encoder.1.SingleConv2.conv.weight",
+      "shape": [
+        32,
+        16,
+        3,
+        3
+      ],
+      "count": 4608,
+      "min": -0.43845081329345703,
+      "max": 0.4178916811943054
+    },
+    {
+      "name": "conv2_bias2",
+      "checkpoint_key": "encoder.1.SingleConv2.conv.bias",
+      "shape": [
+        32
+      ],
+      "count": 32,
+      "min": -0.6721758842468262,
+      "max": 0.6919336915016174
+    },
+    {
+      "name": "conv3_kernel1",
+      "checkpoint_key": "decoder_conv.SingleConv1.conv.weight",
+      "shape": [
+        16,
+        48,
+        3,
+        3
+      ],
+      "count": 6912,
+      "min": -1.8495079278945923,
+      "max": 2.6458497047424316
+    },
+    {
+      "name": "conv3_bias1",
+      "checkpoint_key": "decoder_conv.SingleConv1.conv.bias",
+      "shape": [
+        16
+      ],
+      "count": 16,
+      "min": -0.13022562861442566,
+      "max": 0.6027063727378845
+    },
+    {
+      "name": "conv3_kernel2",
+      "checkpoint_key": "decoder_conv.SingleConv2.conv.weight",
+      "shape": [
+        16,
+        16,
+        3,
+        3
+      ],
+      "count": 2304,
+      "min": -3.2754995822906494,
+      "max": 1.9456511735916138
+    },
+    {
+      "name": "conv3_bias2",
+      "checkpoint_key": "decoder_conv.SingleConv2.conv.bias",
+      "shape": [
+        16
+      ],
+      "count": 16,
+      "min": -0.28149786591529846,
+      "max": 0.4592960476875305
+    },
+    {
+      "name": "final_kernel",
+      "checkpoint_key": "final_conv.weight",
+      "shape": [
+        20,
+        16,
+        1,
+        1,
+        1
+      ],
+      "count": 320,
+      "min": -4.301651954650879,
+      "max": 1.626363754272461
+    },
+    {
+      "name": "final_bias",
+      "checkpoint_key": "final_conv.bias",
+      "shape": [
+        20
+      ],
+      "count": 20,
+      "min": -0.8670123219490051,
+      "max": 0.36007270216941833
+    }
+  ]
+}

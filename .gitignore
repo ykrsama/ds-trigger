@@ -25,3 +25,5 @@ block_checkpoints
 .cache
 .autopilot
 .debug
+
+__pycache__/

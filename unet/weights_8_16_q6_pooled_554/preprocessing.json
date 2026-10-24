@@ -1,0 +1,30 @@
+{
+  "transform": "log1p(energy)/scale",
+  "scale": 8.0,
+  "train_only": true,
+  "calibration_samples": 16384,
+  "energy_positive_fraction": 0.3615985107421875,
+  "positive_energy_percentiles": {
+    "50": 3.0725836753845215,
+    "90": 99.6896606445313,
+    "99": 1595.0994409179686,
+    "99.5": 2068.14505859376,
+    "99.9": 3145.9162431641316
+  },
+  "calibration_input_clipped_fraction": 0.001414794921875,
+  "positive_quantized_to_zero_fraction": 0.10420580545301404,
+  "source_layout": "WHD",
+  "model_layout": "NHWD",
+  "transpose": [
+    1,
+    0,
+    2
+  ],
+  "signed_bits": 6,
+  "integer_bits_including_sign": 1,
+  "fractional_bits": 5,
+  "qkeras_quantizer": "quantized_bits(6,0,symmetric=0,keep_negative=True,alpha=1)",
+  "hls_storage": "ap_fixed<6,1,AP_RND_CONV,AP_SAT>",
+  "hls_accumulator": "ap_fixed<24,12>",
+  "note": "Float MAC during QAT; HLS accumulator and complete U-Net C simulation require subsequent validation."
+}
